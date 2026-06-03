@@ -1,0 +1,44 @@
+{
+  "_comment": "Fill after Perplexity research. Save as docs/mcp-research.filled.json or paste into Cursor. Not strict JSON Schema.",
+  "meta": {
+    "generated": "YYYY-MM-DD",
+    "researched_by": "Perplexity / manual",
+    "notes": "Optional one-line context (e.g. Cursor + FastAPI + React)"
+  },
+  "servers": [
+    {
+      "name": "example-mcp-server",
+      "purpose": "One-line: what problem this solves for equity research / filings / market data",
+      "repo_url": "https://github.com/...",
+      "package_or_install": "e.g. npx -y @scope/package@latest | uvx mcp-server-foo | docker run ...",
+      "runtime": "node | python | docker | other",
+      "auth": "none | api_key | oauth | other",
+      "env_vars": ["EXAMPLE_API_KEY"],
+      "tools_summary": "Bullet list or short paragraph of exposed tools",
+      "maintenance": "active | stale | unknown",
+      "last_commit_or_release_hint": "optional",
+      "risks": "rate limits, cost, deprecated APIs, license",
+      "priority_rank": 1
+    }
+  ],
+  "skills_and_prompt_packs": [
+    {
+      "name": "example-skill",
+      "url": "https://...",
+      "format": "markdown | cursor-rules | claude-skill | other",
+      "use_case": "When to load this in the IDE agent",
+      "priority_rank": 1
+    }
+  ],
+  "avoid_or_outdated": [
+    {
+      "name": "deprecated-thing",
+      "reason": "Why skip",
+      "source_url": "optional"
+    }
+  ],
+  "shortlist_top_10": [
+    "server-or-skill name 1",
+    "server-or-skill name 2"
+  ]
+}

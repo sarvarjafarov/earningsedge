@@ -1,0 +1,25 @@
+---
+description: FastAPI, orchestrator, and Python agents — patterns for earningsedge/backend
+globs: earningsedge/backend/**/*.py
+alwaysApply: false
+---
+
+# Backend conventions
+
+## Orchestrator
+
+- **`Orchestrator`** owns session state, `audio_queue`, `transcript_queue`, `broadcast`, and agent lifecycle.
+- **Coverage preload**: `POST /api/coverage` calls `start_briefing` **without** requiring `/ws/audio`. **`open_session`** preserves ticker/company if already set from coverage.
+- **Live path**: `/ws/audio` → `open_session` → TranscriptAgent; control `phase: listening` → `start_live` spawns parallel agents (metrics, sentiment, FinalSynthesisAgent, HighlightLexiconAgent).
+- **`ChatAgent`**: `POST /api/ask` only — side-channel Q&A; not part of the Live audio task group.
+
+## Agents
+
+- One concern per file under **`agents/`**; export via **`agents/__init__.py`**.
+- Use **`google-genai`** / Gemini model names already in use; don’t swap Live model in `transcript_agent.py` without testing transcription.
+- **`tools.py`**: external APIs (Alpha Vantage, FMP, Finnhub); respect rate limits and env vars from `.env`.
+
+## API & WS
+
+- Dashboard: **`/ws`** (outbound JSON); capture: **`/ws/audio`** (binary PCM + control JSON).
+- Prefer **structured broadcast** payloads the frontend already handles (`transcript`, `metrics`, `chat`, etc.).

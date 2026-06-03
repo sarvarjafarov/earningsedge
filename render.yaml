@@ -1,0 +1,60 @@
+# Render Blueprint — single Docker web service that builds the React frontend
+# and serves it from FastAPI as static files (same-origin, no CORS needed).
+#
+# To deploy:
+#   1. Sign in at https://render.com
+#   2. New → Blueprint → connect this GitHub repo
+#   3. In the dashboard, paste the API keys (see envVars below) into the
+#      generated env-var slots. Render encrypts them at rest.
+#   4. Deploy. First build is ~5–8 minutes.
+#
+# To upgrade out of cold-start sleeps later:
+#   In the service settings, change the plan from `free` to `starter` ($7/mo).
+
+services:
+  - type: web
+    name: earningsedge
+    runtime: docker
+    plan: free
+    region: oregon
+    # Deploy from `main` — every merge ships to production.
+    branch: main
+    rootDir: earningsedge
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+
+    envVars:
+      # Listen port (Render injects $PORT automatically; the Dockerfile reads it).
+      - key: PYTHONUNBUFFERED
+        value: '1'
+
+      # ── REQUIRED — paste in Render dashboard, never commit ───────────────
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ALPHA_VANTAGE_API_KEY
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: FMP_API_KEY
+        sync: false
+
+      # ── Strongly recommended ────────────────────────────────────────────
+      - key: FRED_API_KEY
+        sync: false
+
+      # ── Optional ────────────────────────────────────────────────────────
+      - key: ALPACA_API_KEY
+        sync: false
+      - key: ALPACA_SECRET_KEY
+        sync: false
+      - key: ALPACA_BASE_URL
+        value: 'https://paper-api.alpaca.markets'
+
+      # ── Production CORS — explicit allowlist for the deployed origin so
+      # the in-code default (which falls back to localhost:3000/3001) never
+      # ships to production. Same-origin requests don't need CORS, but this
+      # prevents accidental breakage if the frontend ever moves to its own
+      # domain or if anything embeds the dashboard.
+      - key: ALLOWED_ORIGINS
+        value: 'https://earningsedge.onrender.com'

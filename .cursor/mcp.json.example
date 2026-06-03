@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "sec-edgar": {
+      "command": "uvx",
+      "args": ["sec-edgar-mcp"]
+    },
+    "octagon": {
+      "command": "npx",
+      "args": ["-y", "octagon-mcp@latest"],
+      "env": { "OCTAGON_API_KEY": "YOUR_OCTAGON_API_KEY" }
+    },
+    "finance-tools": {
+      "command": "uvx",
+      "args": ["finance-tools-mcp"],
+      "env": { "FRED_API_KEY": "YOUR_FRED_API_KEY" }
+    },
+    "fmp-mcp": {
+      "command": "npx",
+      "args": ["-y", "fmp-mcp"],
+      "env": { "FMP_ACCESS_TOKEN": "YOUR_FMP_TOKEN_SAME_AS_FMP_API_KEY" }
+    }
+  }
+}

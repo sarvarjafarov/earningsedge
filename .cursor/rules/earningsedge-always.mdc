@@ -1,0 +1,28 @@
+---
+description: EarningsEdge product vision, handoff protocol, and repo map — applies to every chat
+alwaysApply: true
+---
+
+# EarningsEdge — always read first
+
+## North star
+
+Build a **universal company intelligence workspace**: ingest **financial and operational** signals for **any public (or supported) company**, combine tools and agents, and surface **actionable buy / sell / hold** style outputs with clear assumptions and risk — **not** blind trading advice; disclosures stay in UI copy.
+
+## Before you change code
+
+1. Read **`docs/PROJECT_CONTEXT.md`** for decisions, stack, roadmap bullets, and **Tools inventory** (`tools.py` vs **`mcp-research.json`**).
+2. Read **`docs/AGENTS-AUDIT.md`** if touching `backend/agents/` or `orchestrator.py`.
+3. Match existing patterns (imports, typing, React style); **no drive-by refactors**.
+4. Secrets only in **`.env`** (gitignored); never commit keys.
+
+## Repo map
+
+- **`earningsedge/backend/`** — FastAPI, WebSockets, multi-agent orchestration, `tools.py` (market data APIs).
+- **`earningsedge/frontend/`** — React (CRA); dashboard, coverage form, earnings call tab capture, chat.
+- **`docs/`** — Long-lived notes, MCP template, audits.
+- **Root** — `mcp-research.json` (MCP/skills shortlist for Cursor — not app runtime); app code is under **`earningsedge/`**.
+
+## When context is “new”
+
+Summarize new decisions as bullets in **`docs/PROJECT_CONTEXT.md`** (Architecture / Decisions / Changelog sections).

@@ -1,0 +1,287 @@
+{
+  "generated": "2026-04-12",
+  "ranked_shortlist": [
+    "sec-edgar-mcp",
+    "financial-datasets-mcp",
+    "alpha-vantage-mcp",
+    "finance-tools-mcp",
+    "fmp-mcp",
+    "fred-mcp-server",
+    "yfmcp",
+    "polygon-mcp-server",
+    "finnhub-mcp"
+  ],
+  "avoid_list": [
+    "Quandl-based servers (deprecated API — migrated to Nasdaq Data Link, no active MCP wrappers)",
+    "mcp-fredapi (Jaldekoa) — only series_observations endpoint works; date/limit params broken",
+    "Bloomberg MCP (djsamseng/bloomberg-mcp) — requires Bloomberg Terminal + blpapi C++ SDK; impractical for most devs",
+    "Any MCP server last committed before Q1 2025 using only HTTP+SSE transport (deprecated March 2025 spec update)",
+    "Emir-Danisik/polygon-MCP — not a real Polygon server; it's a TypeScript notes-system boilerplate"
+  ],
+  "servers": [
+    {
+      "name": "Octagon Market Intelligence MCP",
+      "repo_url": "https://github.com/OctagonAI/octagon-mcp-server",
+      "npm_package": "octagon-mcp",
+      "install_hint": "npx -y octagon-mcp@latest",
+      "cursor_config": {
+        "mcpServers": {
+          "octagon-mcp-server": {
+            "command": "npx",
+            "args": ["-y", "octagon-mcp@latest"],
+            "env": { "OCTAGON_API_KEY": "YOUR_KEY_HERE" }
+          }
+        }
+      },
+      "tools_summary": "SEC filings analysis (10-K/10-Q/8-K/20-F/S-1 for 8K+ companies), earnings call transcripts (10 yrs history), financial metrics & ratios, stock market data (10K+ active tickers), private company research (3M+ companies), institutional holdings (Form 13F), crypto data. Sub-servers available for each domain.",
+      "auth": "api_key",
+      "auth_notes": "Free account at octagonai.co; generate key under API Keys menu",
+      "license": "MIT",
+      "maintenance": "Actively maintained (2025-2026 commits)",
+      "risks": "Free tier rate limits unknown; proprietary API — pricing may change; requires Node.js/npx",
+      "use_cases": "Full equity research workflow: pull 10-K/10-Q, analyze earnings transcripts, compare financials, screen stocks"
+    },
+    {
+      "name": "SEC EDGAR MCP",
+      "repo_url": "https://github.com/stefanoamorelli/sec-edgar-mcp",
+      "pypi_package": "sec-edgar-mcp",
+      "install_hint": "uvx sec-edgar-mcp",
+      "cursor_config": {
+        "mcpServers": {
+          "sec-edgar-mcp": {
+            "command": "uvx",
+            "args": ["sec-edgar-mcp"]
+          }
+        }
+      },
+      "tools_summary": "CIK lookup, company info & facts, recent filings list, filing content retrieval, 8-K analysis, section extraction (e.g. MD&A, Risk Factors), financial statements with direct XBRL parsing, insider trading (Form 3/4/5 with transaction detail). Powered by edgartools library.",
+      "auth": "none",
+      "auth_notes": "Uses public SEC EDGAR API — no key required; SEC recommends setting User-Agent header",
+      "license": "MIT",
+      "maintenance": "Actively maintained (last PyPI release Aug 2025, blog post Jul 2025)",
+      "risks": "SEC EDGAR has rate limits (~10 req/sec); very large filings may be slow; XBRL parsing accuracy depends on edgartools version",
+      "use_cases": "Pull exact 10-K/10-Q revenue/EPS figures with accession number citations; insider trading alerts; 8-K event analysis"
+    },
+    {
+      "name": "Financial Datasets MCP (Official)",
+      "repo_url": "https://github.com/financial-datasets/mcp-server",
+      "remote_url": "https://mcp.financialdatasets.ai/",
+      "install_hint": "Add https://mcp.financialdatasets.ai/ as remote MCP in Cursor (OAuth) OR: git clone + uv run server.py",
+      "cursor_config_remote": {
+        "mcpServers": {
+          "financial-datasets": {
+            "url": "https://mcp.financialdatasets.ai/",
+            "auth": "oauth"
+          }
+        }
+      },
+      "cursor_config_local": {
+        "mcpServers": {
+          "financial-datasets": {
+            "command": "/path/to/uv",
+            "args": ["--directory", "/path/to/financial-datasets-mcp", "run", "server.py"],
+            "env": { "FINANCIAL_DATASETS_API_KEY": "YOUR_KEY" }
+          }
+        }
+      },
+      "tools_summary": "getIncomeStatement, getBalanceSheet, getCashFlowStatement, getStockPriceSnapshot, getHistoricalStockPrices, getFinancialMetrics (P/E, EV, revenue/share), getSegmentedRevenues (by product/geo segment), getFilings (SEC 10-K/10-Q/8-K), getCompanyNews, crypto prices",
+      "auth": "oauth",
+      "auth_notes": "OAuth for interactive use (no API key setup); API key available for programmatic/scripted workflows",
+      "license": "MIT",
+      "maintenance": "Actively maintained (1.9k GitHub stars, Mar 2025 release)",
+      "risks": "Paid API beyond free tier; OAuth flow adds friction for local dev; segmented revenues coverage varies by company",
+      "use_cases": "3-statement model pulls, segment revenue breakdowns, combined SEC filings + financial metrics in one server"
+    },
+    {
+      "name": "Alpha Vantage MCP (Official)",
+      "repo_url": "https://mcp.alphavantage.co",
+      "install_hint": "Add https://mcp.alphavantage.co as remote MCP URL in Cursor, or use hosted config",
+      "cursor_config": {
+        "mcpServers": {
+          "alpha-vantage": {
+            "url": "https://mcp.alphavantage.co",
+            "env": { "ALPHA_VANTAGE_API_KEY": "YOUR_KEY" }
+          }
+        }
+      },
+      "tools_summary": "TIME_SERIES_DAILY/WEEKLY/MONTHLY (OHLCV), COMPANY_OVERVIEW, INCOME_STATEMENT, BALANCE_SHEET, CASH_FLOW, EARNINGS, RSI/MACD/SMA (50+ technical indicators), forex rates, crypto prices, ETF/fund data, macroeconomic indicators, NEWS_SENTIMENT",
+      "auth": "api_key",
+      "auth_notes": "Free tier: 25 API calls/day, 500/month. Premium plans for real-time + higher volume. Get key at alphavantage.co",
+      "license": "Proprietary (free tier available)",
+      "maintenance": "Official Alpha Vantage product (2025-2026 active)",
+      "risks": "Free tier 25 calls/day is very restrictive for iterative research; paid plans required for serious use; no WebSocket streaming",
+      "use_cases": "Historical OHLCV for backtesting, technical indicator overlays, fundamental data, macro indicators, news sentiment"
+    },
+    {
+      "name": "finance-tools-mcp (yfinance + FRED + TA + Fear & Greed)",
+      "repo_url": "https://github.com/VoxLink-org/finance-tools-mcp",
+      "pypi_package": "finance-tools-mcp",
+      "install_hint": "uvx finance-tools-mcp",
+      "cursor_config": {
+        "mcpServers": {
+          "finance-tools": {
+            "command": "uvx",
+            "args": ["finance-tools-mcp"],
+            "env": { "FRED_API_KEY": "YOUR_FRED_KEY_OPTIONAL" }
+          }
+        }
+      },
+      "tools_summary": "get_ticker_data (overview/news/metrics/analyst recs), get_price_history (OHLCV + TA-Lib indicators + risk metrics + Fibonacci levels), get_financial_statements (IS/BS/CF quarterly or annual), get_institutional_holders, get_earnings_history, get_insider_trades, get_options, get_fred_series, search_fred_series, get_current_fng_tool (CNN Fear & Greed), cnbc_news_feed. LLM-optimized smart sampling for time series.",
+      "auth": "none",
+      "auth_notes": "FRED_API_KEY optional (higher rate limits from St. Louis Fed); no key needed for yfinance data",
+      "license": "MIT",
+      "maintenance": "Forked/maintained (Jul 2025 commit; 40 stars)",
+      "risks": "yfinance scrapes Yahoo Finance — Yahoo may change structure; TA-Lib C dependency may cause install issues on some systems; 40 stars suggests smaller community",
+      "use_cases": "All-in-one server for a coding agent: equity + macro + sentiment in a single uvx command"
+    },
+    {
+      "name": "Financial Modeling Prep MCP (FMP)",
+      "repo_url": "https://github.com/imbenrabi/Financial-Modeling-Prep-MCP-Server",
+      "npm_package": "fmp-mcp",
+      "install_hint": "npx -y fmp-mcp --fmp-token=YOUR_TOKEN",
+      "cursor_config": {
+        "mcpServers": {
+          "financial-modeling-prep": {
+            "command": "npx",
+            "args": ["-y", "fmp-mcp"],
+            "env": { "FMP_ACCESS_TOKEN": "YOUR_TOKEN" }
+          }
+        }
+      },
+      "tools_summary": "Company profiles, income statements, balance sheets, cash flows, stock quotes (real-time & historical), earnings transcripts, financial ratios, key metrics, DCF valuations, institutional ownership, insider transactions, SEC filings, market movers, technical indicators",
+      "auth": "api_key",
+      "auth_notes": "FMP_ACCESS_TOKEN env var; free tier available at financialmodelingprep.com (limited endpoints)",
+      "license": "MIT",
+      "maintenance": "Actively maintained (Jun 2025 commit; Jun 2025 CHANGELOG)",
+      "risks": "FMP free tier is very limited; full feature set requires paid plan ($19+/mo); earnings transcripts and DCF on higher tiers only",
+      "use_cases": "Earnings transcript analysis, pre-built DCF endpoint, comprehensive financial ratios for comps analysis"
+    },
+    {
+      "name": "FRED MCP Server (Federal Reserve Economic Data)",
+      "repo_url": "https://github.com/stefanoamorelli/fred-mcp-server",
+      "install_hint": "uvx fred-mcp-server OR: git clone + uv run",
+      "cursor_config": {
+        "mcpServers": {
+          "fred-mcp": {
+            "command": "uvx",
+            "args": ["fred-mcp-server"],
+            "env": { "FRED_API_KEY": "YOUR_KEY" }
+          }
+        }
+      },
+      "tools_summary": "browse_categories (explore FRED taxonomy), search_series (by keyword or tags), get_series_observations (retrieve time series data with transformations: pct change, log, etc.) for any of 800K+ series including GDP, CPI, unemployment, treasury yields, mortgage rates, M2 money supply",
+      "auth": "api_key",
+      "auth_notes": "Free FRED API key from fred.stlouisfed.org — no cost, instant approval",
+      "license": "MIT",
+      "maintenance": "Actively maintained by stefanoamorelli (May 2025)",
+      "risks": "FRED API rate limits: 120 requests/minute; no real-time data (FRED data typically monthly/quarterly); not affiliated with Federal Reserve",
+      "use_cases": "Macro backdrop for equity research, yield curve analysis, inflation/GDP context for earnings models, economic scenario modeling"
+    },
+    {
+      "name": "Yahoo Finance MCP (yfmcp / narumiruna)",
+      "repo_url": "https://github.com/narumiruna/yfinance-mcp",
+      "pypi_package": "yfmcp",
+      "install_hint": "uvx yfmcp@latest",
+      "cursor_config": {
+        "mcpServers": {
+          "yfinance": {
+            "command": "uvx",
+            "args": ["yfmcp@latest"]
+          }
+        }
+      },
+      "tools_summary": "Stock info, historical prices (OHLCV), dividends, splits, income statement, balance sheet, cash flow, major holders, institutional holders, recommendations, options chain, news",
+      "auth": "none",
+      "auth_notes": "No API key required; wraps yfinance library which scrapes Yahoo Finance",
+      "license": "MIT",
+      "maintenance": "Actively maintained (Apr 2025 commit)",
+      "risks": "Yahoo Finance ToS discourages scraping; yfinance may break without warning when Yahoo changes endpoints; no SLA; not for production pipelines",
+      "use_cases": "Zero-cost quick prototyping, personal research, fallback data source, options chain access"
+    },
+    {
+      "name": "Polygon.io MCP Server",
+      "repo_url": "https://github.com/jwaresolutions/polygon-mcp-server",
+      "install_hint": "git clone + npm install + node build/index.js",
+      "cursor_config": {
+        "mcpServers": {
+          "polygon": {
+            "command": "node",
+            "args": ["/path/to/polygon-server/build/index.js"],
+            "env": { "POLYGON_API_KEY": "YOUR_KEY" }
+          }
+        }
+      },
+      "tools_summary": "get_ticker_details, get_latest_quote (real-time on paid), get_aggregates (OHLCV bars), get_daily_open_close, get_market_status, get_ticker_news, list_tickers, get_snapshot (multi-ticker)",
+      "auth": "api_key",
+      "auth_notes": "POLYGON_API_KEY; free tier available (delayed quotes); Starter $29/mo for real-time",
+      "license": "MIT",
+      "maintenance": "Community maintained (May 2025 commit)",
+      "risks": "Real-time data requires paid plan; community-maintained (not official Polygon); no npm package yet — must build from source",
+      "use_cases": "OHLCV bars for quant models, real-time quotes for live dashboards, multi-ticker snapshots"
+    },
+    {
+      "name": "Finnhub MCP (SalZaki)",
+      "repo_url": "https://github.com/SalZaki/finnhub-mcp",
+      "install_hint": "Docker: docker build + docker run OR .NET: dotnet run",
+      "cursor_config_docker": {
+        "mcpServers": {
+          "finnhub": {
+            "command": "docker",
+            "args": ["run", "-i", "--rm", "-e", "FINNHUB_API_KEY=YOUR_KEY", "finnhub-mcp:latest"]
+          }
+        }
+      },
+      "tools_summary": "Real-time SSE streaming + STDIO; stock quotes, company fundamentals, earnings calendar, technical indicators, IPO calendar, market news, sentiment data via Finnhub institutional-grade APIs",
+      "auth": "api_key",
+      "auth_notes": "FINNHUB_API_KEY; free tier: 60 API calls/minute for most endpoints; get key at finnhub.io",
+      "license": "Not specified (C#/.NET implementation)",
+      "maintenance": "May 2025 commit",
+      "risks": "C#/.NET runtime required (less standard for JS/Python repos); Docker adds overhead; free tier 60 req/min; some premium endpoints gated",
+      "use_cases": "Real-time streaming quotes, earnings calendar integration, IPO pipeline tracking, institutional sentiment"
+    }
+  ],
+  "skills": [
+    {
+      "name": "Anthropic Financial Modeling Suite (SKILL.md)",
+      "url": "https://github.com/anthropics/claude-cookbooks/tree/main/skills/custom_skills/creating-financial-models",
+      "install_hint": "git clone anthropics/claude-cookbooks, then ln -s path/to/creating-financial-models ~/.claude/skills/ OR upload SKILL.md to Claude Skills in Claude.ai",
+      "use_case": "DCF valuation (perpetuity + exit multiple), Monte Carlo simulation, sensitivity analysis (tornado charts), scenario planning (base/bull/bear with probabilities). Generates Excel workbooks with formulas, color-coding conventions, and error checks."
+    },
+    {
+      "name": "Anthropic Analyzing Financial Statements (SKILL.md)",
+      "url": "https://github.com/anthropics/claude-cookbooks/tree/main/skills/custom_skills/analyzing-financial-statements",
+      "install_hint": "Same as above (claude-cookbooks repo); or download individual SKILL.md",
+      "use_case": "Financial ratio calculator: ROE, P/E, Current Ratio, Debt/Equity, Gross Margin, EBITDA margin, etc. Interprets ratios with industry benchmarks. Takes raw financial statement data as input."
+    },
+    {
+      "name": "Anthropic Financial Services Plugins (Enterprise Suite)",
+      "url": "https://github.com/anthropics/financial-services-plugins",
+      "install_hint": "Clone repo; follow README to configure plugins for Claude for Enterprise. Includes equity-research, investment-banking, private-equity, wealth-management modules.",
+      "use_case": "Full institutional workflow: comps, DCF, LBO, 3-statement models, CIM drafting, earnings updates, IC memos, portfolio reporting. MCP connectors to Daloopa, Morningstar, FactSet, LSEG, PitchBook, S&P Global (enterprise accounts required for data connectors)."
+    },
+    {
+      "name": "SkillsMP Finance / Quant Collection",
+      "url": "https://skillsmp.com",
+      "install_hint": "Browse skillsmp.com; download individual SKILL.md files; upload to Claude Skills or reference in system prompt",
+      "use_case": "2300+ indexed skills. Finance-relevant: Stock Analysis (Yahoo Finance integration), DCF Valuation, Investment Memo generator, Company Research, SaaS Metrics (MRR/ARR/churn), Crypto Report. Search 'finance' or 'quant'."
+    },
+    {
+      "name": "Market Expert MCP + Skill (Conare / Finnhub)",
+      "url": "https://conare.ai/marketplace/mcp/market-expert",
+      "install_hint": "See conare.ai; combines Finnhub MCP server with Equity Researcher persona SKILL.md",
+      "use_case": "Automated equity research report generation. Institutional-grade Finnhub data + specialized Equity Researcher AI persona. Generates professional market research reports from a single ticker command."
+    },
+    {
+      "name": "Claude Scientific Skills (K-Dense AI) — quant/time-series subset",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills",
+      "install_hint": "git clone K-Dense-AI/claude-scientific-skills; load relevant SKILL.md files (market-research-reports, data-analysis)",
+      "use_case": "134+ scientific skills including time series analysis (ARIMA, GARCH), statistical modeling, data visualization. Useful for quant research overlaid on financial data from MCP servers."
+    },
+    {
+      "name": "Earnings Transcripts MCP Bundle (MCPBundles / FMP)",
+      "url": "https://www.mcpbundles.com/skills/fmp-transcripts",
+      "install_hint": "Add MCPBundles server URL to Cursor MCP config; see mcpbundles.com for endpoint",
+      "use_case": "3 tools: get transcript by symbol/quarter, list latest transcripts across market, check transcript availability dates. Powered by FMP Earnings Transcript API. Pairs with FMP MCP for full earnings workflow."
+    }
+  ]
+}

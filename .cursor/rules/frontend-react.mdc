@@ -1,0 +1,23 @@
+---
+description: React dashboard, API base, and WebSocket config — earningsedge/frontend
+globs: earningsedge/frontend/**/*.{js,jsx,css}
+alwaysApply: false
+---
+
+# Frontend conventions
+
+## Config
+
+- **`src/apiConfig.js`**: `REACT_APP_API_BASE` for dev (CRA on :3000 → API :8000); production same-origin.
+- WebSocket URLs via **`getWsUrl()`** — don’t hardcode hosts.
+
+## Flow
+
+- **Idle dashboard** → **Load company** (`POST /api/coverage`) → **ready** → **Earnings call** opens tab share + live agents.
+- Optional **voice briefing** link for legacy mic identify path.
+- **Chat** widget: text-only replies (no browser TTS for agent).
+
+## UI
+
+- Dark theme tokens in **`index.css`** (`:root`); reuse existing card / badge patterns for new panels.
+- New “universal tool” sections should plug into the **top nav** pattern in **`App.js`** (placeholders for Research / Filings / + Sections).
