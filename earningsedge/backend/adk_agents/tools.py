@@ -26,22 +26,10 @@ import trade_executor
 _log = logging.getLogger("earningsedge.adk.tools")
 
 
-def _safe(default: Any = None):
-    """Decorator: return ``{"error": str(exc)}`` instead of raising."""
-
-    def deco(fn):
-        async def wrapper(*args, **kwargs):
-            try:
-                return await fn(*args, **kwargs)
-            except Exception as exc:  # noqa: BLE001
-                _log.warning("adk tool %s failed: %s", fn.__name__, exc)
-                return {"error": f"{type(exc).__name__}: {exc}"} if default is None else default
-
-        wrapper.__name__ = fn.__name__
-        wrapper.__doc__ = fn.__doc__
-        return wrapper
-
-    return deco
+# Tool bodies inline their own try/except so ADK can read each function's
+# real signature (parameter names + type hints). Decorating with
+# ``*args, **kwargs`` hides the signature from ADK's auto-schema and
+# makes Gemini hallucinate alternate arg shapes when the call fails.
 
 
 # ---------------------------------------------------------------------------
@@ -49,26 +37,31 @@ def _safe(default: Any = None):
 # ---------------------------------------------------------------------------
 
 
-@_safe()
 async def get_stock_quote(ticker: str) -> dict[str, Any]:
     """Return real-time price, day high/low, change %, market cap for a ticker.
 
     Source: Finnhub quote + Alpha Vantage fallback.
     """
-    return await legacy_tools.get_stock_data(ticker)
+    try:
+        return await legacy_tools.get_stock_data(ticker)
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("get_stock_quote(%s) failed: %s", ticker, exc)
+        return {"error": f"{type(exc).__name__}: {exc}"}
 
 
-@_safe()
 async def get_fundamentals(ticker: str) -> dict[str, Any]:
     """Return fundamentals: P/E, EV/EBITDA, revenue growth, margins, EPS, PEG.
 
     Combines Finnhub + FMP + yfinance. Use this to ground any valuation
     claim — never invent a multiple.
     """
-    return await legacy_tools.get_fundamentals(ticker)
+    try:
+        return await legacy_tools.get_fundamentals(ticker)
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("get_fundamentals(%s) failed: %s", ticker, exc)
+        return {"error": f"{type(exc).__name__}: {exc}"}
 
 
-@_safe()
 async def get_analyst_consensus(ticker: str) -> dict[str, Any]:
     """Return analyst recommendation distribution and 12-mo price target.
 
@@ -76,34 +69,47 @@ async def get_analyst_consensus(ticker: str) -> dict[str, Any]:
     drivers, sample_size, freshness}``. Use the score directly in any
     committee aggregation.
     """
-    return await legacy_tools.get_analyst_recommendation(ticker)
+    try:
+        return await legacy_tools.get_analyst_recommendation(ticker)
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("get_analyst_consensus(%s) failed: %s", ticker, exc)
+        return {"error": f"{type(exc).__name__}: {exc}"}
 
 
-@_safe()
 async def get_peers(ticker: str) -> dict[str, Any]:
     """Return peer companies and a relative-valuation comparison.
 
     Use this to surface 'cheap vs sector' or 'rich vs sector' findings.
     """
-    return await legacy_tools.get_competitors(ticker)
+    try:
+        return await legacy_tools.get_competitors(ticker)
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("get_peers(%s) failed: %s", ticker, exc)
+        return {"error": f"{type(exc).__name__}: {exc}"}
 
 
-@_safe()
 async def get_news_sentiment(ticker: str, company_name: str = "") -> dict[str, Any]:
     """Return rolling 7-day news sentiment with article-level breakdown.
 
     Use this when the user asks about recent narrative or catalyst risk.
     """
-    return await legacy_tools.get_news_sentiment(ticker, company_name)
+    try:
+        return await legacy_tools.get_news_sentiment(ticker, company_name)
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("get_news_sentiment(%s) failed: %s", ticker, exc)
+        return {"error": f"{type(exc).__name__}: {exc}"}
 
 
-@_safe()
 async def get_earnings_estimates(ticker: str) -> dict[str, Any]:
     """Return next-quarter EPS and revenue consensus + history of beats.
 
     Source: Finnhub earnings calendar consensus with FMP fallback.
     """
-    return await legacy_tools.get_earnings_estimates(ticker)
+    try:
+        return await legacy_tools.get_earnings_estimates(ticker)
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("get_earnings_estimates(%s) failed: %s", ticker, exc)
+        return {"error": f"{type(exc).__name__}: {exc}"}
 
 
 # ---------------------------------------------------------------------------
