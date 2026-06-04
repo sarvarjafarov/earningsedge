@@ -1,0 +1,70 @@
+name: smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: earningsedge/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: earningsedge/backend/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Import the ADK root agent + sub-agents
+        # No GEMINI_API_KEY needed for import-time validation. This catches
+        # signature drift, schema-generation issues, and missing tool wiring.
+        env:
+          GEMINI_API_KEY: import-only-no-network-call
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, '.')
+          from adk_agents import root_agent
+          from adk_agents.sub_agents import ALL_SUB_AGENTS
+          assert root_agent.name == 'earningsedge_chairman'
+          assert len(root_agent.tools) == 11, f'expected 11 tools, got {len(root_agent.tools)}'
+          assert len(ALL_SUB_AGENTS) == 3, f'expected 3 sub-agents, got {len(ALL_SUB_AGENTS)}'
+          for sub in ALL_SUB_AGENTS:
+              assert sub.tools, f'{sub.name} has no tools'
+          print('ADK shape OK: root + {} sub-agents + {} tools'.format(
+              len(ALL_SUB_AGENTS), len(root_agent.tools)))
+          PY
+      - name: Import MongoDB MCP layer
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, '.')
+          import mcp_client
+          import atlas_writer
+          assert hasattr(mcp_client, 'mcp_call')
+          assert hasattr(atlas_writer, 'durable_write')
+          print('MCP layer OK')
+          PY
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: earningsedge/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: earningsedge/frontend/package-lock.json
+      - run: npm ci
+      - run: CI=true npm test -- --watchAll=false --passWithNoTests
+      - run: CI=true npm run build

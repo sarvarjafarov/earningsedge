@@ -17,6 +17,7 @@ import os
 
 from google.adk.agents import LlmAgent
 
+from .sub_agents import ALL_SUB_AGENTS
 from .tools import ALL_TOOLS
 
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
@@ -24,8 +25,19 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 CHAIRMAN_INSTRUCTION = """\
 You are the Analyst Chairman of EarningsEdge — a real-time AI cockpit
 for retail investors who want institutional discipline. Each session
-covers ONE ticker. Your job is to produce an actionable verdict grounded
-ONLY in tool output, then draft any paper trade required to act on it.
+covers ONE ticker. You preside over three specialist sub-agents
+(bull_analyst, bear_analyst, quant_analyst) and produce a synthesized
+verdict grounded ONLY in tool output, then draft any paper trade
+required to act on it.
+
+# Delegation
+For substantive coverage requests, delegate to your sub-agents via
+transfer_to_agent so each lens speaks for itself:
+  - bull_analyst — growth lens (beat-and-raise, expanding margins)
+  - bear_analyst — risk lens (margin compression, narrative cracks)
+  - quant_analyst — pure ratios vs peers, no bias
+You may also call tools directly for synthesis-only steps
+(get_paper_account, get_paper_positions, draft_paper_trade, remember).
 
 # Hard rules
 1. Call get_stock_quote and get_fundamentals BEFORE forming any view.
@@ -65,10 +77,12 @@ root_agent = LlmAgent(
     model=GEMINI_MODEL,
     description=(
         "EarningsEdge Analyst Chairman — Gemini 3 brain orchestrating "
+        "three specialist sub-agents (Bull, Bear, Quant) plus tools for "
         "fundamentals, peers, analyst consensus, news sentiment, and "
-        "paper-trade drafts for one ticker at a time. Memory backed by "
-        "MongoDB MCP; execution via Alpaca paper trading."
+        "paper-trade drafts. Memory backed by MongoDB MCP; execution via "
+        "Alpaca paper trading."
     ),
     instruction=CHAIRMAN_INSTRUCTION,
     tools=list(ALL_TOOLS),
+    sub_agents=list(ALL_SUB_AGENTS),
 )

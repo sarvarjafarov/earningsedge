@@ -58,3 +58,22 @@ services:
       # domain or if anything embeds the dashboard.
       - key: ALLOWED_ORIGINS
         value: 'https://earningsedge.onrender.com'
+
+      # ── Hackathon partner-track integration (MongoDB MCP) ───────────────
+      # The mongodb-mcp-server runs as a sidecar; pymongo direct is the
+      # fallback. Paste a real Atlas SRV URI in the dashboard to light
+      # this up. Leaving it unset is safe — durable_write becomes a no-op.
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB
+        value: 'earningsedge'
+      - key: MONGODB_MCP_URL
+        value: 'http://127.0.0.1:8088'
+      - key: MCP_TIMEOUT_S
+        value: '10'
+
+      # ── Gemini model pinning (defaults already fine) ────────────────────
+      - key: GEMINI_MODEL
+        value: 'gemini-3.5-flash'
+      - key: GEMINI_LIVE_MODEL
+        value: 'gemini-3.1-flash-live-preview'

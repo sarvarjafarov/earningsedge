@@ -118,5 +118,15 @@ writer = AtlasWriter()
 
 
 async def durable_write(tool: str, args: dict[str, Any]) -> None:
-    """Inline-first, queue-on-failure write. Never raises."""
+    """Inline-first, queue-on-failure write. Never raises.
+
+    Short-circuits to a no-op when neither ``MONGODB_URI`` nor
+    ``MDB_MCP_CONNECTION_STRING`` is set, so a missing Atlas config
+    doesn't grow an unbounded retry queue. This keeps the demo
+    healthy when judges run the project without a database.
+    """
+    import os
+    if not (os.getenv("MONGODB_URI") or os.getenv("MDB_MCP_CONNECTION_STRING")):
+        _log.debug("durable_write skipped (no MongoDB URI set) tool=%s", tool)
+        return
     await writer.submit(tool, args)

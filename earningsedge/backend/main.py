@@ -510,8 +510,82 @@ async def adk_run(body: ADKRunRequest) -> dict[str, Any]:
 
 @app.get("/api/mcp/status")
 async def mcp_status() -> dict[str, Any]:
-    """Diagnostics for the MongoDB MCP write queue (hackathon judge view)."""
-    return {"ok": True, "atlas_writer": _atlas_writer.stats()}
+    """Diagnostics for the MongoDB MCP partner-track integration.
+
+    Surfaces everything a judge needs to verify the partner integration
+    is live: whether the Atlas URI is configured, whether the MCP server
+    URL is reachable, the durable-writer queue, and a probe round-trip.
+    """
+    from urllib.parse import urlparse
+    mongodb_uri = (os.getenv("MONGODB_URI") or os.getenv("MDB_MCP_CONNECTION_STRING") or "").strip()
+    mcp_url = (os.getenv("MONGODB_MCP_URL") or "").strip()
+    mongodb_db = os.getenv("MONGODB_DB", "earningsedge")
+
+    masked_uri = ""
+    if mongodb_uri:
+        parsed = urlparse(mongodb_uri)
+        host = parsed.hostname or ""
+        masked_uri = f"{parsed.scheme}://...@{host}/" if host else "<set>"
+
+    mcp_reachable = False
+    if mcp_url:
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                r = await client.get(mcp_url.rstrip("/") + "/health")
+                mcp_reachable = r.status_code < 500
+        except Exception:
+            mcp_reachable = False
+
+    probe_ok = False
+    probe_error: str | None = None
+    if mongodb_uri:
+        try:
+            from mcp_client import mcp_call
+            await mcp_call("list-databases", {})
+            probe_ok = True
+        except Exception as exc:  # noqa: BLE001
+            probe_error = f"{type(exc).__name__}: {exc}"
+
+    return {
+        "ok": True,
+        "config": {
+            "mongodb_uri": masked_uri or "<unset>",
+            "mongodb_db": mongodb_db,
+            "mongodb_mcp_url": mcp_url or "<unset>",
+        },
+        "mcp_server_reachable": mcp_reachable,
+        "round_trip_probe": {"ok": probe_ok, "error": probe_error},
+        "atlas_writer": _atlas_writer.stats(),
+    }
+
+
+@app.get("/api/gemini/health")
+async def gemini_health() -> dict[str, Any]:
+    """Probe whether Gemini Live (the live-audio path) is available.
+
+    Returns ``{available, error}``. The UI uses this to disable the
+    'Listen live' button gracefully when the key is missing, the quota
+    is exhausted (1011), or the project is dunning-blocked (1008) —
+    instead of letting the user click and watch nothing happen.
+    """
+    if not os.getenv("GEMINI_API_KEY", "").strip():
+        return {"available": False, "error": "GEMINI_API_KEY is not set"}
+    try:
+        from google import genai
+        from google.genai import types as genai_types
+
+        live_model = os.getenv("GEMINI_LIVE_MODEL", "gemini-3.1-flash-live-preview")
+        client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        cfg = genai_types.LiveConnectConfig(
+            response_modalities=["AUDIO"],
+            input_audio_transcription=genai_types.AudioTranscriptionConfig(),
+        )
+        async with client.aio.live.connect(model=live_model, config=cfg):
+            return {"available": True, "model": live_model}
+    except Exception as exc:  # noqa: BLE001
+        msg = f"{type(exc).__name__}: {exc}"
+        return {"available": False, "error": msg[:240]}
 
 
 @app.websocket("/ws")

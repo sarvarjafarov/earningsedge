@@ -22,6 +22,80 @@
 
 ---
 
+## Why this matters
+
+US retail investors are 25% of equity volume. Most earnings calls happen
+*outside* US market hours: a CEO speaks at 5pm ET on Tuesday and the
+stock gaps either way at 9:30am Wednesday. In those 16 hours, retail
+investors form opinions from 90-second tweets, click-bait YouTube
+recaps, and TikToks. Then they panic-trade at the open.
+
+EarningsEdge is the AI cockpit that replaces that doom-scroll with a
+disciplined committee process:
+
+- **Three sub-agents debate** — Bull, Bear, Quant — each with a focused
+  tool subset under a Chairman LlmAgent (Gemini 3 via Google Cloud Agent
+  Builder).
+- **Live transcription** of any browser tab playing the audio, with
+  speaker diarization and 12-topic routing.
+- **Voice Q&A** — the user asks follow-ups in their own voice; the
+  Chairman replies in voice.
+- **One-tap paper execution** through Alpaca with the rationale logged
+  in MongoDB Atlas via the partner MCP server, so the next session can
+  read the decision history.
+
+The target user is the retail investor who currently spends 3 hours a
+week reading earnings transcripts and writing notes by hand. EarningsEdge
+gives them an institutional-grade analyst on call — for any of the 5,000
+US-listed tickers — at zero marginal cost.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    user([Retail investor]) -->|ticker / question| ui[React Cockpit]
+    ui -->|/api/coverage| orch[Orchestrator]
+    ui -->|/api/adk/run| adk[ADK Runner]
+
+    subgraph google[Google Cloud Agent Builder]
+        adk --> chair[earningsedge_chairman<br/>LlmAgent · Gemini 3.5 Flash]
+        chair -. transfer_to_agent .-> bull[bull_analyst<br/>growth lens]
+        chair -. transfer_to_agent .-> bear[bear_analyst<br/>risk lens]
+        chair -. transfer_to_agent .-> quant[quant_analyst<br/>ratios vs peers]
+    end
+
+    orch --> live[Gemini Live 3.1<br/>bidiGenerateContent]
+    ui --> tts[Gemini TTS 2.5<br/>voice replies]
+
+    subgraph tools[Tools layer]
+        finnhub[(Finnhub)]
+        fmp[(FMP)]
+        av[(Alpha Vantage)]
+        fred[(FRED)]
+        yf[(yfinance)]
+        alpaca[(Alpaca Paper)]
+    end
+
+    bull --> tools
+    bear --> tools
+    quant --> tools
+    chair --> tools
+
+    subgraph mcp[MongoDB MCP partner track]
+        mcpsrv[mongodb-mcp-server<br/>Streamable HTTP]
+        atlas[(MongoDB Atlas<br/>sessions · trades · verdicts)]
+    end
+
+    chair -.remember/recall.-> mcpsrv
+    orch -.session start / trade.-> mcpsrv
+    mcpsrv --> atlas
+```
+
+The live demo URL serves this whole stack from one origin via a
+Cloudflare quick tunnel (`scripts/start_demo.sh`).
+
+---
+
 ## Setup in 10 minutes
 
 You need **6 API keys** plus a free MongoDB Atlas cluster. Five keys are 1-click signups; the sixth (Gemini Live) needs ~3 minutes of GCP setup — see [Gemini Live access](#gemini-live-access-the-1-trap) below.

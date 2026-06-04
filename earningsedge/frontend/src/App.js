@@ -9,6 +9,7 @@ import SummaryPanel from './components/SummaryPanel';
 import MacroPanel from './components/MacroPanel';
 import TechnicalPanel from './components/TechnicalPanel';
 import AnalystPanel from './components/AnalystPanel';
+import ChairmanADKPanel from './components/ChairmanADKPanel';
 import TradingPanel from './components/TradingPanel';
 import CommitteeView from './components/CommitteeView';
 import OnboardingTour from './components/OnboardingTour';
@@ -95,6 +96,11 @@ function App({ onBackToLanding }) {
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceInterim, setVoiceInterim] = useState('');
   const [chatCollapsed, setChatCollapsed] = useState(false);
+  /** Gemini Live (live-audio path) health — probed once on mount.
+   *  Drives the disabled state + tooltip on the Listen-live button so
+   *  judges don't click into a silent failure when quota or billing
+   *  blocks the bidiGenerateContent socket. */
+  const [geminiLive, setGeminiLive] = useState({ available: true, error: null });
   const [coverageForm, setCoverageForm] = useState({
     ticker: '',
     company_name: '',
@@ -168,6 +174,25 @@ function App({ onBackToLanding }) {
   useEffect(() => {
     identifiedRef.current = identified;
   }, [identified]);
+
+  /** Probe Gemini Live (bidiGenerateContent) once on mount. The result
+   *  drives a non-intrusive disabled state on the Listen-live button so
+   *  the user gets a clear "live audio unavailable" message instead of
+   *  watching a session that will never produce a transcript. */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`${API_BASE}/api/gemini/health`);
+        if (cancelled) return;
+        const body = await r.json();
+        setGeminiLive({ available: !!body.available, error: body.error || null });
+      } catch (_) {
+        if (!cancelled) setGeminiLive({ available: false, error: 'health probe failed' });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const teardownCapture = useCallback(async () => {
     const stream = audioStreamRef.current;
@@ -1626,11 +1651,17 @@ function App({ onBackToLanding }) {
                 className="btn btn-primary ccb-primary"
                 data-tour="primary-cta"
                 onClick={requestStartEarningsCall}
-                disabled={sessionStatus === 'connecting'}
-                title="Share any browser tab playing audio — earnings webcast, news segment, conference stream, fireside chat"
+                disabled={sessionStatus === 'connecting' || !geminiLive.available}
+                title={
+                  !geminiLive.available
+                    ? `Live audio unavailable: ${geminiLive.error || 'Gemini Live not reachable on the current GEMINI_API_KEY'}`
+                    : 'Share any browser tab playing audio — earnings webcast, news segment, conference stream, fireside chat'
+                }
               >
                 {sessionStatus === 'connecting' ? (
                   'Connecting…'
+                ) : !geminiLive.available ? (
+                  'Live audio unavailable'
                 ) : (
                   <><span aria-hidden="true">▶</span> Listen live</>
                 )}
@@ -1894,6 +1925,7 @@ function App({ onBackToLanding }) {
         {companyView === 'committee' && (
           <div className="company-view company-view--committee">
             <CommitteeView tradeSignal={tradeSignal} variant="full" />
+            <ChairmanADKPanel ticker={identified?.ticker} />
           </div>
         )}
         </>
