@@ -1,8 +1,16 @@
 # 3-minute hackathon demo video — shot-by-shot script (v2)
 
-**Total runtime:** ~2 min 50 s. **Tool:** Loom / QuickTime / OBS.
-**Resolution:** 1920×1080. **Audio:** clean mic, no background music
-during the dialogue.
+**Total runtime:** ~2 min 50 s (cap is 3:00; anything beyond 3:00 is
+not evaluated per the official rules).
+**Recording tool:** QuickTime, OBS, ScreenStudio — any screen recorder
+that exports MP4.
+**Hosting (per official rules):** **YouTube or Vimeo only**. Loom is
+NOT acceptable per the contest rules. Upload as Unlisted on YouTube
+(satisfies the "publicly visible" requirement) and paste the link into
+the Devpost submission.
+**Resolution:** 1920×1080.
+**Audio:** clean mic, no background music during dialogue.
+**Language:** English (rules require English or English subtitles).
 
 Open the live URL in a fresh Chrome window so the cursor isn't covered
 by browser chrome. Have a second Chrome tab pre-loaded with a real

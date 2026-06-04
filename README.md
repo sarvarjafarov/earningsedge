@@ -141,8 +141,56 @@ flowchart TD
     mcpsrv --> atlas
 ```
 
-The live demo URL serves this whole stack from one origin via a
-Cloudflare quick tunnel (`scripts/start_demo.sh`).
+The live demo URL is hosted on Heroku Container Registry
+(`https://earningsedge-3391b61f61d9.herokuapp.com`). The local-dev path
+adds the `mongodb-mcp-server` sidecar via `scripts/start_demo.sh`.
+
+---
+
+## Provenance — what was built during the contest period
+
+This repository was created on **2026-06-03** (Contest Period:
+2026-05-05 → 2026-06-11). The agent-layer work — the entire
+hackathon-required surface — is genuinely new and entirely
+contest-period.
+
+**Newly created during the contest:**
+
+| Component | File(s) |
+|---|---|
+| Google Cloud Agent Builder root agent (`earningsedge_chairman`) | `earningsedge/backend/adk_agents/root_agent.py` |
+| Five named-investor sub-agents (Wood, Burry, Druckenmiller, Cramer, Marks) | `earningsedge/backend/adk_agents/sub_agents.py` |
+| 13 ADK-registered tools | `earningsedge/backend/adk_agents/tools.py` |
+| MongoDB MCP client (Streamable HTTP + envelope parser + pymongo fallback) | `earningsedge/backend/mcp_client.py` |
+| Durable Atlas write queue | `earningsedge/backend/atlas_writer.py` |
+| Atlas Vector Search memory + index management | `earningsedge/backend/vector_memory.py` |
+| Gemini embeddings helper | `earningsedge/backend/embedding.py` |
+| In-memory verdict corpus + cosine-similarity fallback | `earningsedge/backend/verdict_corpus.py` + `seed_corpus.json` |
+| Seed verdicts (11 in-style historical examples) | `earningsedge/backend/seed_verdicts.py` |
+| Heroku Container Registry deploy path | `earningsedge/Dockerfile`, `earningsedge/start.sh`, `earningsedge/backend/requirements-prod.txt` |
+| Cloudflare quick-tunnel local-dev script | `scripts/start_demo.sh`, `scripts/tunnel_watchdog.sh` |
+| SSE streaming `/api/adk/run` endpoint | `earningsedge/backend/main.py` |
+| ADK Chairman React panel with SSE consumer | `earningsedge/frontend/src/components/ChairmanADKPanel.jsx` |
+| Gemini Live health probe + graceful UI degradation | `earningsedge/backend/main.py` + `App.js` |
+| Backend pytest suite (13 tests) | `earningsedge/backend/tests/test_{adk_shape,mcp_envelope,atlas_writer}.py` |
+| GitHub Actions CI workflow | `.github/workflows/smoke.yml` |
+| Compliance + setup docs | `docs/HACKATHON.md`, `docs/TUNNEL.md`, `docs/VIDEO.md`, this README |
+
+**Used as pre-existing dependencies (treated as libraries):**
+
+| Component | Why this is "library" not "your own code" |
+|---|---|
+| `earningsedge/backend/tools.py` (market-data adapters) | Pure function library wrapping Finnhub / FMP / Alpha Vantage / FRED HTTP APIs; equivalent to using `finnhub-python` package. The agent's 13 tools wrap these but the wrappers themselves are new. |
+| `earningsedge/backend/orchestrator.py` + legacy specialist agents | The *legacy* coverage path (Macro/Peer/Sentiment/Technical/Metrics agents). The ADK Chairman does NOT depend on these — it composes its own tools directly. The legacy path remains in the repo because the production React cockpit calls it for the dashboard panels; the *hackathon submission* is the ADK Chairman path at `/api/adk/run`. |
+| React frontend shell (`earningsedge/frontend/src/`) | Application chrome (tabs, layout, transcript panel, paper-trading panel). The hackathon-specific surface is the new `ChairmanADKPanel.jsx` we added inside this shell. |
+| `alpaca-py`, `google-genai`, `google-adk`, `fastapi`, `pymongo`, `mcp` | Off-the-shelf open-source libraries from PyPI / npm. |
+
+**What this means for judging:** the *hackathon-required surface*
+(Gemini 3 + Google Cloud Agent Builder + MongoDB MCP + Atlas Vector
+Search) is implemented in genuinely new code during the contest
+period. The React shell and the legacy market-data tools are used as
+common infrastructure, equivalent to using any other open-source
+dependency.
 
 ---
 
