@@ -27,6 +27,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -212,17 +213,17 @@ async def set_coverage(request: Request, body: CoverageRequest) -> dict[str, Any
     # never raises (durable_write absorbs failures into the retry queue).
     if result.get("ok"):
         company = result.get("company") or {}
-        asyncio.create_task(durable_write("insert-one", {
+        asyncio.create_task(durable_write("insert-many", {
             "database": os.getenv("MONGODB_DB", "earningsedge"),
             "collection": "sessions",
-            "document": {
+            "documents": [{
                 "session_id": session_id,
                 "ticker": company.get("ticker"),
                 "company_name": company.get("company_name"),
                 "sector": company.get("sector"),
                 "kind": "coverage",
-                "ts": int(asyncio.get_event_loop().time() * 1000),
-            },
+                "ts": int(time.time() * 1000),
+            }],
         }))
     return result
 
@@ -408,17 +409,17 @@ async def place_order(req: Request) -> dict[str, Any]:
 
     order_result = _executor.submit_order(ticker=ticker, side=side, qty=qty, limit_price=limit_price_f)
     # Persist the trade to MongoDB Atlas via MCP — fire and forget.
-    asyncio.create_task(durable_write("insert-one", {
+    asyncio.create_task(durable_write("insert-many", {
         "database": os.getenv("MONGODB_DB", "earningsedge"),
         "collection": "trades",
-        "document": {
+        "documents": [{
             "ticker": ticker,
             "side": side,
             "qty": qty,
             "limit_price": limit_price_f,
             "result": order_result if isinstance(order_result, dict) else {"raw": str(order_result)},
-            "ts": int(asyncio.get_event_loop().time() * 1000),
-        },
+            "ts": int(time.time() * 1000),
+        }],
     }))
     return order_result
 

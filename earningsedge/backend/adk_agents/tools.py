@@ -192,8 +192,8 @@ async def remember(collection: str, document: dict[str, Any]) -> dict[str, Any]:
         from atlas_writer import durable_write
 
         await durable_write(
-            "insert-one",
-            {"database": "earningsedge", "collection": collection, "document": document},
+            "insert-many",
+            {"database": "earningsedge", "collection": collection, "documents": [document]},
         )
         return {"ok": True, "collection": collection}
     except Exception as exc:  # noqa: BLE001
