@@ -10,6 +10,9 @@ import MacroPanel from './components/MacroPanel';
 import TechnicalPanel from './components/TechnicalPanel';
 import AnalystPanel from './components/AnalystPanel';
 import ChairmanADKPanel from './components/ChairmanADKPanel';
+import MorningBriefingPanel from './components/MorningBriefingPanel';
+import PatternAlertsPanel from './components/PatternAlertsPanel';
+import NewsDigestPanel from './components/NewsDigestPanel';
 import TradingPanel from './components/TradingPanel';
 import CommitteeView from './components/CommitteeView';
 import OnboardingTour from './components/OnboardingTour';
@@ -1440,14 +1443,25 @@ function App({ onBackToLanding }) {
             </button>
           </div>
           <h1 id="empty-heading" className="company-empty-title">
-            Pick a company. Get the cockpit.
+            Sleep through earnings calls. Wake up with conviction.
           </h1>
           <p className="company-empty-lede">
-            Load a ticker to see fundamentals, peers, news, macro context, technicals and a
-            committee-synthesized trade signal — all in one place. When live audio starts —
-            an earnings call, news segment, conference stream, anything — share that browser tab
-            and we'll transcribe and refresh the dashboards in real time.
+            Five named-investor agents — modeled on Cathie Wood, Michael Burry, Stan
+            Druckenmiller, Jim Cramer, and Howard Marks — debate every earnings call you miss.
+            Atlas Vector Search remembers every prior verdict. You wake up with the depth a
+            sell-side analyst has, not the depth a tweet has.
           </p>
+
+          {/* Morning briefing surfaces overnight verdicts + watchlist + calendar
+              even before a ticker is loaded — makes the autonomy story visible
+              the moment a judge lands on the demo URL. */}
+          <MorningBriefingPanel
+            onPickTicker={(t) => {
+              setCoverageForm({ ticker: t, company_name: '', quarter: '', year: '' });
+              // Wait one tick for state to update before triggering coverage.
+              setTimeout(() => submitCoverage({ preventDefault: () => {} }), 0);
+            }}
+          />
 
           <form className="company-empty-form" onSubmit={submitCoverage}>
             <div className="company-empty-form-row" data-tour="empty-form">
@@ -1876,10 +1890,18 @@ function App({ onBackToLanding }) {
           ))}
         </div>
 
+        {/* Pattern alerts surface similar past verdicts from MongoDB Atlas
+            Vector Search the moment a ticker is loaded — makes the memory
+            engine visible without clicking anything. */}
+        <PatternAlertsPanel ticker={identified?.ticker} />
+
         {/* Always-visible Agent Builder panel. Auto-runs on ticker change
             so judges loading a company see the ADK path execute without
             having to switch tabs. */}
         <ChairmanADKPanel ticker={identified?.ticker} />
+
+        {/* Recent news digest — what the personas are reading. */}
+        <NewsDigestPanel ticker={identified?.ticker} />
 
         {companyView === 'overview' && (
           <div className="dashboard-grid dashboard-grid--overview">

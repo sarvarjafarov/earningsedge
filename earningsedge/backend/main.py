@@ -586,6 +586,106 @@ async def vector_search(body: dict[str, Any]) -> dict[str, Any]:
     return {"ok": True, "matches": rows}
 
 
+# ---------------------------------------------------------------------------
+# Watchlist + Earnings calendar + News digest + Overnight briefing
+# (Bundle 1+3 from the post-pivot enhancement plan)
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/watchlist")
+async def get_watchlist_endpoint(request: Request) -> dict[str, Any]:
+    """Return the user's watchlist. Falls through to the seeded default."""
+    from watchlist import get_watchlist
+    uid = request.headers.get("x-session-id") or "demo-user"
+    return {"ok": True, "tickers": get_watchlist(uid)}
+
+
+@app.post("/api/watchlist")
+async def set_watchlist_endpoint(request: Request, body: dict[str, Any]) -> dict[str, Any]:
+    from watchlist import set_watchlist
+    uid = request.headers.get("x-session-id") or "demo-user"
+    tickers = body.get("tickers") or []
+    if not isinstance(tickers, list):
+        return {"ok": False, "error": "tickers must be a list"}
+    return set_watchlist(tickers, uid)
+
+
+@app.post("/api/watchlist/add")
+async def watchlist_add(request: Request, body: dict[str, Any]) -> dict[str, Any]:
+    from watchlist import add_ticker
+    uid = request.headers.get("x-session-id") or "demo-user"
+    return add_ticker(body.get("ticker", ""), uid)
+
+
+@app.post("/api/watchlist/remove")
+async def watchlist_remove(request: Request, body: dict[str, Any]) -> dict[str, Any]:
+    from watchlist import remove_ticker
+    uid = request.headers.get("x-session-id") or "demo-user"
+    return remove_ticker(body.get("ticker", ""), uid)
+
+
+@app.get("/api/calendar/upcoming")
+async def calendar_upcoming(request: Request) -> dict[str, Any]:
+    """Earnings calls scheduled in the next 7 days for the user's watchlist."""
+    from earnings_calendar import upcoming
+    from watchlist import get_watchlist
+    uid = request.headers.get("x-session-id") or "demo-user"
+    tickers = get_watchlist(uid)
+    days_str = request.query_params.get("days", "7")
+    try:
+        days = max(1, min(int(days_str), 30))
+    except ValueError:
+        days = 7
+    events = await upcoming(tickers, days=days)
+    return {"ok": True, "tickers": tickers, "days": days, "events": events}
+
+
+@app.get("/api/news/digest")
+async def news_digest_endpoint(ticker: str, days: int = 14, top_n: int = 6) -> dict[str, Any]:
+    """Ranked recent news for a single ticker."""
+    from news_digest import digest
+    return await digest(ticker, days=days, top_n=top_n)
+
+
+@app.get("/api/briefings/today")
+async def briefings_today(request: Request) -> dict[str, Any]:
+    """Load the morning briefing produced by the overnight pipeline."""
+    from datetime import datetime, timezone
+    uid = request.headers.get("x-session-id") or "demo-user"
+    date = datetime.now(timezone.utc).date().isoformat()
+    try:
+        from mcp_client import mcp_call
+        rows = await asyncio.wait_for(
+            mcp_call("find", {
+                "database": os.getenv("MONGODB_DB", "earningsedge"),
+                "collection": "morning_briefings",
+                "filter": {"user_id": uid, "date": date},
+                "sort": {"ts": -1},
+                "limit": 1,
+            }),
+            timeout=6.0,
+        )
+        rows = rows or []
+        if not isinstance(rows, list):
+            rows = []
+        return {"ok": True, "date": date, "briefing": rows[0] if rows else None}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "date": date, "briefing": None, "error": str(exc)}
+
+
+@app.post("/api/briefings/run_now")
+async def briefings_run_now(request: Request, body: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Manual trigger for the overnight pipeline. Useful for the demo.
+
+    NOT secured — for a real deployment, gate on an admin auth token.
+    The overnight cron uses ``python -m overnight_pipeline`` directly.
+    """
+    from overnight_pipeline import run
+    uid = request.headers.get("x-session-id") or "demo-user"
+    force = bool((body or {}).get("force"))
+    return await run(user_id=uid, force=force)
+
+
 @app.get("/api/mcp/status")
 async def mcp_status() -> dict[str, Any]:
     """Diagnostics for the MongoDB MCP partner-track integration.

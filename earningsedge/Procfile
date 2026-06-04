@@ -1,0 +1,14 @@
+# Heroku process declarations.
+#
+# `web` runs the same container entrypoint as the Docker CMD; included
+# for completeness when a non-container Heroku stack is used.
+#
+# `overnight` is the command Heroku Scheduler invokes. To wire it up:
+#   1) heroku addons:create scheduler:standard -a earningsedge
+#   2) heroku addons:open scheduler -a earningsedge
+#   3) Add job — Command: `python -m overnight_pipeline demo-user`
+#      Frequency: Every day at 11:00 UTC (7 AM ET).
+#
+# The cron runs inside a one-off dyno with the same env vars + image as web.
+web: ./start.sh
+overnight: python -m overnight_pipeline demo-user
