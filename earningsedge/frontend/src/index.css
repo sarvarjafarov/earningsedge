@@ -8619,7 +8619,36 @@ that class so they don't affect normal browser rendering.
 }
 .adk-panel header { margin-bottom: 12px; }
 .adk-panel__title { display: flex; align-items: center; gap: 10px; }
+.adk-panel--running {
+  border-color: var(--accent-cyan);
+  animation: adk-pulse 2s ease-in-out infinite;
+}
+@keyframes adk-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 200, 255, 0.15); }
+  50% { box-shadow: 0 0 28px rgba(0, 200, 255, 0.4); }
+}
 .adk-panel__title h3 { color: var(--text-primary); font-size: 16px; font-weight: 600; margin: 0; }
+.adk-panel__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-cyan);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  margin-left: auto;
+}
+.adk-panel__spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(0, 200, 255, 0.3);
+  border-top-color: var(--accent-cyan);
+  border-radius: 50%;
+  animation: adk-spin 0.7s linear infinite;
+}
+@keyframes adk-spin {
+  to { transform: rotate(360deg); }
+}
 .adk-panel__sub { color: var(--text-dim); font-weight: 400; font-size: 12px; margin-left: 6px; }
 .adk-panel__badge {
   background: var(--accent-cyan);

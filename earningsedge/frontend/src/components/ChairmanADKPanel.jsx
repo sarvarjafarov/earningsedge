@@ -66,18 +66,33 @@ export default function ChairmanADKPanel({ ticker, autoRun = true }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ticker, autoRun]);
 
+  // Don't render the panel at all when no ticker is loaded — the empty
+  // textarea-and-button block was visually noisy on the hero screen.
+  if (!ticker && !result && !running && !error) return null;
+
   return (
-    <section className="adk-panel">
+    <section className={`adk-panel ${running ? 'adk-panel--running' : ''}`}>
       <header>
         <div className="adk-panel__title">
           <span className="adk-panel__badge">ADK</span>
-          <h3>Analyst Chairman <span className="adk-panel__sub">via Google Cloud Agent Builder</span></h3>
+          <h3>
+            Analyst Chairman{' '}
+            <span className="adk-panel__sub">
+              via Google Cloud Agent Builder · Gemini 3.5 Flash
+            </span>
+          </h3>
+          {running && (
+            <span className="adk-panel__status">
+              <span className="adk-panel__spinner" /> running on Gemini 3 …
+            </span>
+          )}
         </div>
         <p className="adk-panel__lede">
-          Same Gemini 3 brain that powers the cockpit, exposed as an{' '}
-          <code>LlmAgent</code> with 11 tools and 3 sub-agents
-          (<em>Bull</em>, <em>Bear</em>, <em>Quant</em>). Persistence backed by
-          MongoDB MCP.
+          A root <code>LlmAgent</code> with <strong>13 tools</strong> and{' '}
+          <strong>5 sub-agents</strong>{' '}
+          (<em>Bull</em>, <em>Bear</em>, <em>Quant</em>, <em>News</em>,{' '}
+          <em>Macro</em>). Memory backed by MongoDB Atlas Vector Search;
+          persistence by the partner MongoDB MCP server.
         </p>
       </header>
 
@@ -89,7 +104,7 @@ export default function ChairmanADKPanel({ ticker, autoRun = true }) {
       />
 
       <div className="adk-panel__actions">
-        <button onClick={runChairman} disabled={running}>
+        <button onClick={() => runChairman()} disabled={running}>
           {running ? 'Running …' : ticker ? `Run for ${ticker}` : 'Run'}
         </button>
         {ticker && <span className="adk-panel__ctx">ticker context: {ticker}</span>}
@@ -107,10 +122,13 @@ export default function ChairmanADKPanel({ ticker, autoRun = true }) {
           <div className="adk-panel__meta">
             <span><strong>Agent:</strong> {result.agent}</span>
             <span><strong>Model:</strong> {result.model}</span>
+            {Array.isArray(result.tool_calls) && (
+              <span><strong>Tool calls:</strong> {result.tool_calls.length}</span>
+            )}
           </div>
           <div className="adk-panel__response">{result.response}</div>
           {Array.isArray(result.tool_calls) && result.tool_calls.length > 0 && (
-            <details className="adk-panel__trace">
+            <details className="adk-panel__trace" open={running === false && result.tool_calls.length <= 5}>
               <summary>Tool-call trace ({result.tool_calls.length})</summary>
               <ol>
                 {result.tool_calls.map((tc, i) => (

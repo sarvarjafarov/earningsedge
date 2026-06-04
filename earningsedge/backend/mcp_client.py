@@ -26,32 +26,46 @@ from mcp.client.streamable_http import streamablehttp_client
 
 _log = logging.getLogger("earningsedge.mcp")
 
+# The mcp.client.streamable_http SSE handler logs BrokenResourceError on
+# its cleanup path AFTER our call has already returned a result. It looks
+# scary in the uvicorn log but never indicates a real failure. Silence it.
+logging.getLogger("mcp.client.streamable_http").setLevel(logging.CRITICAL)
+logging.getLogger("anyio").setLevel(logging.CRITICAL)
+
 _MONGODB_CONN = os.getenv("MDB_MCP_CONNECTION_STRING") or os.getenv("MONGODB_URI", "")
 _MCP_TIMEOUT_S = float(os.getenv("MCP_TIMEOUT_S", "10"))
 _MCP_FAILURE_THRESHOLD = 3
 
 _mcp_consecutive_failures = 0
 
-_ENVELOPE_RE = re.compile(
-    r"<untrusted-user-data-[0-9a-f-]+>(.*?)</untrusted-user-data-[0-9a-f-]+>",
-    re.DOTALL,
-)
+_ENVELOPE_OPEN_RE = re.compile(r"<untrusted-user-data-[0-9a-f-]+>")
+_ENVELOPE_CLOSE_RE = re.compile(r"</untrusted-user-data-[0-9a-f-]+>")
 
 
 def _strip_envelope(text: str) -> tuple[str, bool]:
-    matches = _ENVELOPE_RE.findall(text)
-    if not matches:
+    """Return the inner envelope content.
+
+    The MCP server prefixes results with a security warning that
+    mentions the envelope tags inline, so a naive non-greedy regex
+    captures the prose between two warning mentions instead of the
+    real content. We anchor on the LAST closing tag and the matching
+    opening tag immediately before it — the actual envelope is always
+    last in the message.
+    """
+    last_close = None
+    for m in _ENVELOPE_CLOSE_RE.finditer(text):
+        last_close = m
+    if last_close is None:
         return text, False
-    for inner in matches:
-        stripped = inner.strip()
-        if not stripped:
-            continue
-        try:
-            json.loads(stripped)
-            return stripped, True
-        except (TypeError, ValueError):
-            continue
-    return matches[0].strip(), True
+    # Find the latest opening tag that starts before last_close.
+    last_open = None
+    for m in _ENVELOPE_OPEN_RE.finditer(text):
+        if m.start() < last_close.start():
+            last_open = m
+    if last_open is None:
+        return text, False
+    inner = text[last_open.end():last_close.start()].strip()
+    return inner, True
 
 
 def _normalize_oids(value: Any) -> Any:
@@ -107,7 +121,11 @@ async def _mcp_call_strict(tool: str, args: dict[str, Any]) -> Any:
         try:
             payloads.append(_normalize_oids(json.loads(candidate)))
         except (TypeError, ValueError):
-            payloads.append(text)
+            # Prefer the cleaner inner envelope text over the full
+            # warning-prose original — callers that don't get JSON still
+            # want to read "Inserted 1 document", not the 800-char
+            # security warning that precedes it.
+            payloads.append(inner if had_envelope else text)
     if not payloads:
         return None
     structured = [p for p in payloads if not isinstance(p, str)]

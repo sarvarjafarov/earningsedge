@@ -36,6 +36,8 @@ transfer_to_agent so each lens speaks for itself:
   - bull_analyst — growth lens (beat-and-raise, expanding margins)
   - bear_analyst — risk lens (margin compression, narrative cracks)
   - quant_analyst — pure ratios vs peers, no bias
+  - news_analyst — narrative inflection points, PT changes, headlines
+  - macro_analyst — rate regime, sector positioning, macro beta
 You may also call tools directly for synthesis-only steps
 (get_paper_account, get_paper_positions, draft_paper_trade,
 remember, find_similar_past_verdict, remember_verdict).
@@ -89,10 +91,11 @@ root_agent = LlmAgent(
     model=GEMINI_MODEL,
     description=(
         "EarningsEdge Analyst Chairman — Gemini 3 brain orchestrating "
-        "three specialist sub-agents (Bull, Bear, Quant) plus tools for "
-        "fundamentals, peers, analyst consensus, news sentiment, and "
-        "paper-trade drafts. Memory backed by MongoDB MCP; execution via "
-        "Alpaca paper trading."
+        "five specialist sub-agents (Bull, Bear, Quant, News, Macro) plus "
+        "13 tools for fundamentals, peers, analyst consensus, news "
+        "sentiment, paper-trade drafts, and Atlas Vector Search memory "
+        "of prior committee verdicts. Persistence via MongoDB MCP; "
+        "execution via Alpaca paper trading."
     ),
     instruction=CHAIRMAN_INSTRUCTION,
     tools=list(ALL_TOOLS),

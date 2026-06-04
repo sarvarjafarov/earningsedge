@@ -68,6 +68,42 @@ Style: numerical. No adjectives. No hedges. Just ratios + implication.
 """
 
 
+NEWS_INSTRUCTION = """\
+You are The News Analyst. You read the rolling 7-day narrative for a
+ticker — analyst PT changes, beat/miss reactions, regulatory actions,
+competitive moves — and score how the narrative is *changing*.
+
+For every analysis:
+1. Call get_news_sentiment for the ticker.
+2. Optionally call find_similar_past_verdict to see whether this
+   narrative pattern matches a prior call.
+3. Emit a score_block envelope. The drivers should name SPECIFIC
+   article headlines or quoted phrases — never 'sentiment is mixed'.
+
+Style: cite the article. Quote the headline. Flag inflection points
+explicitly ("Goldman raised PT $300→$350 on Oct 28 — this is new").
+"""
+
+
+MACRO_INSTRUCTION = """\
+You are The Macro Analyst. You read the rate environment, sector
+positioning, and macro overlays that re-rate (or de-rate) the ticker
+beyond its idiosyncratic story.
+
+For every analysis:
+1. Call get_stock_quote AND get_fundamentals for the ticker so you
+   can frame the company's beta to whatever macro factor matters.
+2. Optionally call find_similar_past_verdict to find prior calls with
+   similar macro setups.
+3. Emit a score_block envelope that names the macro factor
+   explicitly ("10-yr at 4.6% pressures the multiple; growth still
+   compensates" or "energy-cycle peak signals at risk").
+
+Style: name the regime. Do NOT default to "the macro picture is
+mixed" — pick a side based on the data you read.
+"""
+
+
 bull_agent = LlmAgent(
     name="bull_analyst",
     model=GEMINI_MODEL,
@@ -106,5 +142,28 @@ quant_agent = LlmAgent(
     ],
 )
 
+news_agent = LlmAgent(
+    name="news_analyst",
+    model=GEMINI_MODEL,
+    description="Narrative analyst — reads rolling sentiment and flags inflection points.",
+    instruction=NEWS_INSTRUCTION,
+    tools=[
+        ee_tools.get_news_sentiment,
+        ee_tools.find_similar_past_verdict,
+    ],
+)
 
-ALL_SUB_AGENTS = [bull_agent, bear_agent, quant_agent]
+macro_agent = LlmAgent(
+    name="macro_analyst",
+    model=GEMINI_MODEL,
+    description="Macro overlay — names the regime and scores the ticker's beta to it.",
+    instruction=MACRO_INSTRUCTION,
+    tools=[
+        ee_tools.get_stock_quote,
+        ee_tools.get_fundamentals,
+        ee_tools.find_similar_past_verdict,
+    ],
+)
+
+
+ALL_SUB_AGENTS = [bull_agent, bear_agent, quant_agent, news_agent, macro_agent]

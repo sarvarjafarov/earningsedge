@@ -34,8 +34,8 @@ jobs:
           from adk_agents import root_agent
           from adk_agents.sub_agents import ALL_SUB_AGENTS
           assert root_agent.name == 'earningsedge_chairman'
-          assert len(root_agent.tools) == 11, f'expected 11 tools, got {len(root_agent.tools)}'
-          assert len(ALL_SUB_AGENTS) == 3, f'expected 3 sub-agents, got {len(ALL_SUB_AGENTS)}'
+          assert len(root_agent.tools) == 13, f'expected 13 tools, got {len(root_agent.tools)}'
+          assert len(ALL_SUB_AGENTS) == 5, f'expected 5 sub-agents, got {len(ALL_SUB_AGENTS)}'
           for sub in ALL_SUB_AGENTS:
               assert sub.tools, f'{sub.name} has no tools'
           print('ADK shape OK: root + {} sub-agents + {} tools'.format(
@@ -52,6 +52,12 @@ jobs:
           assert hasattr(atlas_writer, 'durable_write')
           print('MCP layer OK')
           PY
+      - name: Run pytest suite
+        env:
+          GEMINI_API_KEY: import-only-no-network-call
+        run: |
+          pip install pytest
+          python -m pytest tests/test_adk_shape.py tests/test_mcp_envelope.py tests/test_atlas_writer.py -v
 
   frontend:
     runs-on: ubuntu-latest
