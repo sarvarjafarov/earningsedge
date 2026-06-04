@@ -509,6 +509,36 @@ async def adk_run(body: ADKRunRequest) -> dict[str, Any]:
     }
 
 
+@app.post("/api/vector/ensure_index")
+async def vector_ensure_index() -> dict[str, Any]:
+    """Idempotent — create the Atlas Vector Search index for verdicts.
+
+    Run once after adding the MongoDB URI. The index builds in ~30 s on
+    Atlas free tier. Safe to call repeatedly: returns ``already_exists``
+    on the no-op path.
+    """
+    from vector_memory import ensure_index
+    return await ensure_index()
+
+
+@app.post("/api/vector/search")
+async def vector_search(body: dict[str, Any]) -> dict[str, Any]:
+    """Direct passthrough for the find_similar_past_verdict tool.
+
+    Useful for the UI's 'similar past verdicts' panel and for letting a
+    judge confirm the Vector Search path is wired without going through
+    Gemini.
+    """
+    from vector_memory import find_similar_verdicts
+    query = (body.get("query") or "").strip()
+    ticker = body.get("ticker") or None
+    k = int(body.get("k", 5))
+    if not query:
+        return {"ok": False, "error": "query required"}
+    rows = await find_similar_verdicts(query, ticker=ticker, k=k)
+    return {"ok": True, "matches": rows}
+
+
 @app.get("/api/mcp/status")
 async def mcp_status() -> dict[str, Any]:
     """Diagnostics for the MongoDB MCP partner-track integration.

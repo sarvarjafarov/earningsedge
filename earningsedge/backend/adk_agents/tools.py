@@ -224,6 +224,76 @@ async def recall(collection: str, query: dict[str, Any], limit: int = 10) -> dic
         return {"ok": False, "rows": [], "error": str(exc)}
 
 
+async def find_similar_past_verdict(
+    query: str,
+    ticker: str = "",
+    k: int = 5,
+) -> dict[str, Any]:
+    """Semantic search past verdicts via Atlas Vector Search.
+
+    Use this to find prior committee decisions on the same or similar
+    tickers whose language matches the current situation. Returns up to
+    ``k`` results with their action, score, confidence, text, and a
+    similarity score in [0, 1]. Higher = more similar.
+
+    Examples of when to call:
+    - The user asks "what did we say last time the CFO talked about
+      compute capacity?"
+    - You want to anchor today's verdict in a prior decision on the
+      same ticker.
+    - The user asks for pattern callouts ("this rhymes with…").
+
+    Parameters
+    ----------
+    query:
+        Free-text query — usually a phrase from the current transcript
+        or the gist of the synthesis you're forming.
+    ticker:
+        Optional ticker filter (e.g. "NVDA"). Empty = search across all.
+    k:
+        How many neighbors to return. Default 5; cap at 20.
+    """
+    try:
+        from vector_memory import find_similar_verdicts
+        rows = await find_similar_verdicts(query, ticker=ticker or None, k=min(int(k), 20))
+        return {"ok": True, "matches": rows}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "matches": [], "error": str(exc)}
+
+
+async def remember_verdict(
+    ticker: str,
+    action: str,
+    score: int,
+    confidence: str,
+    text: str,
+    sources: list | None = None,
+) -> dict[str, Any]:
+    """Persist a committee verdict with a vector embedding.
+
+    The text is embedded with Gemini's text-embedding-004 and stored
+    alongside the verdict in MongoDB Atlas, so future calls to
+    ``find_similar_past_verdict`` will surface this entry.
+
+    Always call this AFTER composing a final verdict the user will see.
+    """
+    try:
+        import time
+        from vector_memory import remember_verdict as _remember
+        doc = {
+            "ticker": ticker.upper() if ticker else None,
+            "action": action,
+            "score": int(score) if score is not None else None,
+            "confidence": confidence,
+            "text": text,
+            "sources": sources or [],
+            "ts": int(time.time() * 1000),
+        }
+        return await _remember(doc)
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": str(exc)}
+
+
 # ---------------------------------------------------------------------------
 # Registry — ADK reads this to advertise tools to Gemini
 # ---------------------------------------------------------------------------
@@ -240,4 +310,6 @@ ALL_TOOLS = [
     draft_paper_trade,
     remember,
     recall,
+    find_similar_past_verdict,
+    remember_verdict,
 ]

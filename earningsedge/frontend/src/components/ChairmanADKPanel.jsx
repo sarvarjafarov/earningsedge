@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getApiBase, sessionHeaders } from '../apiConfig';
 
 /**
@@ -10,21 +10,30 @@ import { getApiBase, sessionHeaders } from '../apiConfig';
  * `/api/coverage` path uses direct `genai` calls, while this panel
  * exercises `POST /api/adk/run` which routes through ADK's
  * `InMemoryRunner` over a Gemini 3 brain composed of a root agent
- * (`earningsedge_chairman`) and three sub-agents
- * (`bull_analyst`, `bear_analyst`, `quant_analyst`).
+ * (`earningsedge_chairman`), three sub-agents
+ * (`bull_analyst`, `bear_analyst`, `quant_analyst`), and 13 tools
+ * including Atlas Vector Search for prior-verdict memory.
+ *
+ * Auto-fires when `ticker` changes so judges loading a company see the
+ * Agent Builder path execute without clicking anything.
  */
-export default function ChairmanADKPanel({ ticker }) {
+export default function ChairmanADKPanel({ ticker, autoRun = true }) {
   const API_BASE = getApiBase();
-  const [prompt, setPrompt] = useState(
+  const DEFAULT_PROMPT =
     'Give me a structured verdict on this ticker — action, confidence, ' +
-    'key driver, named dissent, and any paper trade to draft.',
-  );
+    'key driver, named dissent. First call find_similar_past_verdict so the ' +
+    'verdict cites any prior committee decisions on this name. Then call ' +
+    'remember_verdict at the end so this decision is searchable next time.';
+
+  const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const lastFiredTickerRef = useRef(null);
 
-  async function runChairman() {
-    if (!prompt.trim()) return;
+  async function runChairman(overridePrompt) {
+    const usePrompt = (overridePrompt ?? prompt).trim();
+    if (!usePrompt) return;
     setRunning(true);
     setResult(null);
     setError(null);
@@ -32,7 +41,7 @@ export default function ChairmanADKPanel({ ticker }) {
       const r = await fetch(`${API_BASE}/api/adk/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
-        body: JSON.stringify({ prompt, ticker: ticker || undefined }),
+        body: JSON.stringify({ prompt: usePrompt, ticker: ticker || undefined }),
       });
       const body = await r.json();
       if (!body.ok) {
@@ -46,6 +55,16 @@ export default function ChairmanADKPanel({ ticker }) {
       setRunning(false);
     }
   }
+
+  // Auto-run when ticker first appears or changes. We only auto-run once per
+  // ticker change so the user can refine and re-run manually after that.
+  useEffect(() => {
+    if (!autoRun || !ticker) return;
+    if (lastFiredTickerRef.current === ticker) return;
+    lastFiredTickerRef.current = ticker;
+    runChairman(DEFAULT_PROMPT);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticker, autoRun]);
 
   return (
     <section className="adk-panel">

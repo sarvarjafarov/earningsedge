@@ -1876,6 +1876,11 @@ function App({ onBackToLanding }) {
           ))}
         </div>
 
+        {/* Always-visible Agent Builder panel. Auto-runs on ticker change
+            so judges loading a company see the ADK path execute without
+            having to switch tabs. */}
+        <ChairmanADKPanel ticker={identified?.ticker} />
+
         {companyView === 'overview' && (
           <div className="dashboard-grid dashboard-grid--overview">
             <div className="col col-left">
@@ -1925,7 +1930,6 @@ function App({ onBackToLanding }) {
         {companyView === 'committee' && (
           <div className="company-view company-view--committee">
             <CommitteeView tradeSignal={tradeSignal} variant="full" />
-            <ChairmanADKPanel ticker={identified?.ticker} />
           </div>
         )}
         </>
