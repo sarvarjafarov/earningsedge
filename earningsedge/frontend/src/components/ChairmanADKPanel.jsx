@@ -20,10 +20,11 @@ import { getApiBase, sessionHeaders } from '../apiConfig';
 export default function ChairmanADKPanel({ ticker, autoRun = true }) {
   const API_BASE = getApiBase();
   const DEFAULT_PROMPT =
-    'Give me a structured verdict on this ticker — action, confidence, ' +
-    'key driver, named dissent. First call find_similar_past_verdict so the ' +
-    'verdict cites any prior committee decisions on this name. Then call ' +
-    'remember_verdict at the end so this decision is searchable next time.';
+    'Quick verdict on this ticker. Pick the SINGLE most relevant ' +
+    'named-investor sub-agent (Cathie Wood / Michael Burry / Druckenmiller / ' +
+    'Cramer / Marks) and transfer to them once. First call ' +
+    'find_similar_past_verdict to cite memory if relevant. Synthesize in ' +
+    '4 sentences max. Skip remember_verdict — write that asynchronously.';
 
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [running, setRunning] = useState(false);
@@ -37,17 +38,64 @@ export default function ChairmanADKPanel({ ticker, autoRun = true }) {
     setRunning(true);
     setResult(null);
     setError(null);
+
+    // Streaming: read SSE chunks so a >30s agent run survives Heroku's
+    // router timeout. Each event is one JSON payload after "data: ".
+    const acc = { ok: true, agent: null, model: null, response: '', tool_calls: [] };
+
     try {
       const r = await fetch(`${API_BASE}/api/adk/run`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
+        headers: {
+          'Content-Type': 'application/json',
+          ...sessionHeaders(),
+        },
         body: JSON.stringify({ prompt: usePrompt, ticker: ticker || undefined }),
       });
-      const body = await r.json();
-      if (!body.ok) {
-        setError(body.error || 'agent failed');
-      } else {
-        setResult(body);
+      if (!r.ok) {
+        const txt = await r.text();
+        try {
+          const body = JSON.parse(txt);
+          setError(body.error || 'agent failed');
+        } catch (_) {
+          setError(`HTTP ${r.status}: ${txt.slice(0, 200)}`);
+        }
+        return;
+      }
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let nl;
+        // SSE messages are delimited by blank lines.
+        while ((nl = buf.indexOf('\n\n')) !== -1) {
+          const chunk = buf.slice(0, nl);
+          buf = buf.slice(nl + 2);
+          if (!chunk.startsWith('data:')) continue;
+          const payload = chunk.slice(5).trim();
+          if (!payload) continue;
+          try {
+            const ev = JSON.parse(payload);
+            if (ev.type === 'start') {
+              acc.agent = ev.agent;
+              acc.model = ev.model;
+            } else if (ev.type === 'tool_call') {
+              acc.tool_calls = [...acc.tool_calls, { name: ev.name, args: ev.args || {} }];
+              setResult({ ...acc });  // intermediate render
+            } else if (ev.type === 'final') {
+              acc.response = ev.response || '';
+              setResult({ ...acc });
+            } else if (ev.type === 'error') {
+              setError(ev.error || 'agent failed');
+            }
+          } catch (_) {
+            // ignore parse failures (heartbeats etc.)
+          }
+        }
       }
     } catch (e) {
       setError(String(e.message || e));

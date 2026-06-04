@@ -77,6 +77,15 @@ async def lifespan(app: FastAPI):
     # Start the durable MongoDB-MCP write queue. No-op if MCP / Atlas are
     # unreachable — writes silently buffer and replay when the cluster recovers.
     await _atlas_writer.start()
+    # Warm the in-memory verdict corpus so memory citations work even when
+    # Atlas is unreachable. Cheap (single JSON read + lazy embed re-fill).
+    async def _warm_corpus() -> None:
+        try:
+            from verdict_corpus import warm_corpus
+            await warm_corpus()
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("corpus warm-up failed: %s", exc)
+    asyncio.create_task(_warm_corpus())
     # Warm the pymongo client in the background so the first user request
     # doesn't pay the Atlas SSL handshake cost. Non-blocking — if the
     # warmup fails we still boot.
@@ -461,14 +470,22 @@ class ADKRunRequest(BaseModel):
 
 
 @app.post("/api/adk/run")
-async def adk_run(body: ADKRunRequest) -> dict[str, Any]:
-    """Run the EarningsEdge Analyst Chairman LlmAgent on a user prompt.
+async def adk_run(body: ADKRunRequest):
+    """Run the EarningsEdge Analyst Chairman as a streaming response.
 
-    Uses ADK's InMemoryRunner so the endpoint stays stateless and starts
-    cold instantly. For long-running Vertex AI Agent Engine deployments,
-    swap InMemoryRunner for VertexAiSessionService — the agent + tools
-    are identical.
+    Returns Server-Sent Events. Each event is one JSON-encoded payload.
+    Heroku's 30s router timeout requires us to emit something *within*
+    30 seconds; streaming the tool-call trace as it happens lets the
+    full agent reasoning take 60+ seconds without H12 errors.
+
+    Event types:
+      - {"type": "start", "agent": ...}
+      - {"type": "tool_call", "name": ..., "args": {...}}
+      - {"type": "final", "response": "...", "model": ...}
+      - {"type": "error", "error": "..."}
     """
+    from starlette.responses import StreamingResponse
+
     try:
         from google.adk.runners import InMemoryRunner
         from google.genai import types as genai_types
@@ -484,50 +501,59 @@ async def adk_run(body: ADKRunRequest) -> dict[str, Any]:
     if body.ticker:
         prompt_text = f"[ticker={body.ticker.upper()}] {prompt_text}"
 
-    runner = InMemoryRunner(agent=root_agent, app_name="earningsedge_chairman")
-    try:
-        session = await runner.session_service.create_session(
-            app_name="earningsedge_chairman",
-            user_id=body.user_id,
-            session_id=body.session_id,
-        )
-    except TypeError:
-        session = await runner.session_service.create_session(
-            app_name="earningsedge_chairman",
-            user_id=body.user_id,
-        )
+    async def event_stream():
+        def sse(payload: dict[str, Any]) -> str:
+            return f"data: {json.dumps(payload)}\n\n"
 
-    content = genai_types.Content(role="user", parts=[genai_types.Part(text=prompt_text)])
+        # Heartbeat so the router sees bytes within its window.
+        yield sse({"type": "start", "agent": "earningsedge_chairman",
+                  "model": os.getenv("GEMINI_MODEL", "gemini-3.5-flash")})
 
-    final_text: str | None = None
-    tool_calls: list[dict[str, Any]] = []
-    try:
-        async for event in runner.run_async(
-            user_id=body.user_id,
-            session_id=session.id,
-            new_message=content,
-        ):
-            # ADK emits FunctionCall and FunctionResponse parts as the
-            # agent reasons — collect them for the judge-visible trace.
-            for part in (event.content.parts or []) if event.content else []:
-                if getattr(part, "function_call", None):
-                    fc = part.function_call
-                    tool_calls.append({
-                        "name": fc.name,
-                        "args": dict(fc.args) if fc.args else {},
-                    })
-                if getattr(part, "text", None) and event.is_final_response():
-                    final_text = part.text
-    except Exception as exc:  # noqa: BLE001
-        return {"ok": False, "error": f"adk run failed: {exc}", "tool_calls": tool_calls}
+        try:
+            runner = InMemoryRunner(agent=root_agent, app_name="earningsedge_chairman")
+            try:
+                session = await runner.session_service.create_session(
+                    app_name="earningsedge_chairman",
+                    user_id=body.user_id,
+                    session_id=body.session_id,
+                )
+            except TypeError:
+                session = await runner.session_service.create_session(
+                    app_name="earningsedge_chairman",
+                    user_id=body.user_id,
+                )
 
-    return {
-        "ok": True,
-        "agent": "earningsedge_chairman",
-        "model": os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
-        "response": final_text or "",
-        "tool_calls": tool_calls,
-    }
+            content = genai_types.Content(role="user", parts=[genai_types.Part(text=prompt_text)])
+
+            final_text: str | None = None
+            async for event in runner.run_async(
+                user_id=body.user_id,
+                session_id=session.id,
+                new_message=content,
+            ):
+                for part in (event.content.parts or []) if event.content else []:
+                    if getattr(part, "function_call", None):
+                        fc = part.function_call
+                        yield sse({
+                            "type": "tool_call",
+                            "name": fc.name,
+                            "args": dict(fc.args) if fc.args else {},
+                        })
+                    if getattr(part, "text", None) and event.is_final_response():
+                        final_text = part.text
+
+            yield sse({"type": "final", "response": final_text or ""})
+        except Exception as exc:  # noqa: BLE001
+            yield sse({"type": "error", "error": f"adk run failed: {exc}"})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disable nginx buffering if applicable
+        },
+    )
 
 
 @app.post("/api/vector/ensure_index")

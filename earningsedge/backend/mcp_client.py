@@ -156,7 +156,7 @@ def _get_pymongo_client():
             read_preference=ReadPreference.SECONDARY_PREFERRED,
             retryReads=True,
             retryWrites=True,
-            serverSelectionTimeoutMS=15000,
+            serverSelectionTimeoutMS=int(os.getenv("MONGODB_SELECT_TIMEOUT_MS", "5000")),
         )
     return _pymongo_client
 

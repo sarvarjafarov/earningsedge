@@ -153,6 +153,72 @@ SEED_VERDICTS = [
         "ts": 1730100000000,
         "seed": True,
     },
+    {
+        "ticker": "PLTR",
+        "action": "Add",
+        "score": 81,
+        "confidence": "HIGH",
+        "text": (
+            "Q3 2024 — Bull case held with high conviction. Cathie Wood-style read: "
+            "AIP (Artificial Intelligence Platform) deal closures accelerated to 104 "
+            "vs 65 prior, with mid-market wins broadening beyond government — exactly "
+            "the disruptive-innovation platform transition (defense → enterprise AI) "
+            "that drives Wright's-Law unit-economics improvement through 2030. "
+            "Druckenmiller-style setup analysis flagged the asymmetric upside: "
+            "concentrated position warranted given the multi-year revenue durability. "
+            "Burry-style dissent on the multiple (PE 220) was loud but does not "
+            "anchor on TAM expansion. Memory: this rhymes with NVDA Q3 2023 — "
+            "platform-thesis verdicts where the multiple is paying for visible "
+            "5-year growth tend to compound rather than compress. Add with "
+            "conviction; trim only on a thesis break in deal-closure velocity."
+        ),
+        "sources": ["PLTR Q3 2024 earnings call", "AIP partner pipeline disclosure"],
+        "ts": 1730500000000,
+        "seed": True,
+    },
+    {
+        "ticker": "NFLX",
+        "action": "Trim",
+        "score": 42,
+        "confidence": "MEDIUM",
+        "text": (
+            "Q4 2024 — Jim Cramer-style read on the narrative: ad-tier subscriber "
+            "additions are the headline the market wants, but management's tone on "
+            "content spend was defensive — 'we will be disciplined' said three times "
+            "in fifteen minutes of Q&A. Cramer's instinct: when management defends a "
+            "line that wasn't being attacked, it's because they know it will be. "
+            "Howard Marks-style cycle read: streaming-content cycle is late — peak "
+            "subscriber concentration in mature markets, content amortization "
+            "beginning to compress operating margin even as revenue grows. Burry "
+            "flagged the same: gross margin off 70 bps fourth straight quarter even "
+            "as the headline beat. Trim into strength; this is not the cycle to chase "
+            "the multiple."
+        ),
+        "sources": ["NFLX Q4 2024 earnings call"],
+        "ts": 1730800000000,
+        "seed": True,
+    },
+    {
+        "ticker": "AMZN",
+        "action": "Add",
+        "score": 76,
+        "confidence": "HIGH",
+        "text": (
+            "Q3 2024 — Druckenmiller-style concentrated-bet setup. AWS growth "
+            "re-accelerated to 19.1% from 17.4% — the macro AI-infrastructure cycle "
+            "is mid-cycle and Amazon's capex acceleration ($75B+ guided) is the "
+            "company's most aggressive in a decade. Cathie Wood-style innovation "
+            "thesis: generative AI revenue contribution is now visible across "
+            "Bedrock and Trainium — AWS is no longer the laggard in AI inference. "
+            "Marks-style cycle warning is the dissent: capex peaking calls usually "
+            "precede multiple compression by 12 months. Net: the 6-12 month setup "
+            "is asymmetric to the upside; the 24-month tail risk is real but distant. "
+            "Add at this multiple; revisit on first capex-deceleration signal."
+        ),
+        "sources": ["AMZN Q3 2024 earnings call"],
+        "ts": 1730200000000,
+        "seed": True,
+    },
 ]
 
 

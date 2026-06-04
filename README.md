@@ -1,53 +1,96 @@
 # EarningsEdge
 
-> **The disciplined AI cockpit retail investors deserve.**
+> ## *Sleep through earnings calls. Wake up with conviction.*
 >
-> Pick a ticker. EarningsEdge fans out across fundamentals, peers,
-> analyst consensus, news sentiment, macro and technicals, then composes
-> a weighted committee verdict in ~15 seconds. Click *Listen live* and
-> share any Chrome tab playing audio — earnings webcast, CNBC interview,
-> podcast — and the same committee narrates it line-by-line. Ask
-> follow-ups in your own voice; the analyst answers in its own voice.
-> Approve a paper trade with one tap.
+> Earnings calls happen at 5 PM. Retail investors are at dinner. By
+> 9:30 AM the next morning, Twitter has formed their opinion for them
+> and they buy at the open based on a 280-character take. EarningsEdge
+> is the night-shift analyst that listens to the calls you miss,
+> debates them with **five named-investor agents** modeled on Cathie
+> Wood, Michael Burry, Stan Druckenmiller, Jim Cramer, and Howard
+> Marks, and writes the verdict to **Atlas Vector Search** so the next
+> call remembers what we said this time. You wake up Wednesday with
+> the depth a sell-side analyst has — not the depth a tweet has.
+
+**Live demo:** https://earningsedge-3391b61f61d9.herokuapp.com
 
 **Built for the [Google Cloud Rapid Agent Hackathon](https://rapid-agent.devpost.com/) — Financial Services theme · MongoDB partner track.**
 
 | Hackathon ingredient | Where it lives |
 | --- | --- |
-| Gemini 3 brain | `gemini-3.5-flash` (reasoning), `gemini-3.1-flash-live-preview` (transcription), `gemini-2.5-flash-preview-tts` (voice replies) |
-| Google Cloud Agent Builder (ADK) | [backend/adk_agents/root_agent.py](earningsedge/backend/adk_agents/root_agent.py) — `LlmAgent` with 11 tools, exposed at `POST /api/adk/run` |
+| Gemini 3 brain | `gemini-3.5-flash` (reasoning + 5 sub-agents), `gemini-3.1-flash-live-preview` (transcription), `gemini-2.5-flash-preview-tts` (voice replies), `gemini-embedding-001` (vector memory) |
+| Google Cloud Agent Builder (ADK) | [backend/adk_agents/root_agent.py](earningsedge/backend/adk_agents/root_agent.py) — `LlmAgent` with **13 tools** and **5 named-investor sub-agents**, exposed at `POST /api/adk/run` |
+| MongoDB Atlas Vector Search | [backend/vector_memory.py](earningsedge/backend/vector_memory.py) — every verdict embedded with `gemini-embedding-001` and indexed for semantic recall. The agent cites prior verdicts in every synthesis. |
 | MongoDB MCP server (partner) | [backend/mcp_client.py](earningsedge/backend/mcp_client.py) + [backend/atlas_writer.py](earningsedge/backend/atlas_writer.py) — Streamable HTTP transport with durable retry queue |
-| Hosted demo URL | One command: `./scripts/start_demo.sh` → public `*.trycloudflare.com` URL — see [docs/TUNNEL.md](docs/TUNNEL.md) |
 | Compliance writeup | [docs/HACKATHON.md](docs/HACKATHON.md) — judging-criteria map + 60-second verify script |
 
 ---
 
-## Why this matters
+## The retail investor problem we actually solve
 
-US retail investors are 25% of equity volume. Most earnings calls happen
-*outside* US market hours: a CEO speaks at 5pm ET on Tuesday and the
-stock gaps either way at 9:30am Wednesday. In those 16 hours, retail
-investors form opinions from 90-second tweets, click-bait YouTube
-recaps, and TikToks. Then they panic-trade at the open.
+Earnings calls happen after market hours. Retail investors don't have a
+Bloomberg terminal. They aren't on the analyst-day call. They form
+opinions in the 15-hour window between the call and the next open from
+the only inputs they have — tweets, headlines, and 90-second TikToks.
 
-EarningsEdge is the AI cockpit that replaces that doom-scroll with a
-disciplined committee process:
+We are **not** competing on speed (HFTs already won that). We compete on
+**depth** at retail's natural decision time: **breakfast Wednesday morning,
+before the bell.**
 
-- **Three sub-agents debate** — Bull, Bear, Quant — each with a focused
-  tool subset under a Chairman LlmAgent (Gemini 3 via Google Cloud Agent
-  Builder).
-- **Live transcription** of any browser tab playing the audio, with
-  speaker diarization and 12-topic routing.
-- **Voice Q&A** — the user asks follow-ups in their own voice; the
-  Chairman replies in voice.
-- **One-tap paper execution** through Alpaca with the rationale logged
-  in MongoDB Atlas via the partner MCP server, so the next session can
-  read the decision history.
+| Time | Without EarningsEdge | With EarningsEdge |
+|---|---|---|
+| **5:00 PM Tue** | NVDA reports. You're at dinner. | EarningsEdge auto-listens. |
+| **5:30 PM Tue** | Twitter screams "RAISED GUIDE, BUY!" Stock +8% after-hours. | The five named-investor agents debate the press release. |
+| **6:00 PM Tue** | You consider buying after-hours. | Q&A: CFO says "data-center mix to normalize." Burry-persona flags the language as the same compute-capacity tell from Q1 2024 (Atlas Vector Search match, similarity 0.93). |
+| **6:30 PM Tue** | Still at dinner. | Chairman synthesises: *"HOLD. Cathie-style bull case on guide raise, but Burry's compute-capacity flag rhymes with the Q1 2024 -6.2% drop in 7 days. Don't chase after-hours."* |
+| **8:00 AM Wed** | You read Twitter. Confirmed in your bias. | You read the verdict over coffee. Named dissent shapes your view. |
+| **9:30 AM Wed** | You buy at +5% premarket. | You sit. |
+| **1:00 PM Wed** | Stock fades to -1%. Underwater. | Flat. You saved the chase. |
 
-The target user is the retail investor who currently spends 3 hours a
-week reading earnings transcripts and writing notes by hand. EarningsEdge
-gives them an institutional-grade analyst on call — for any of the 5,000
-US-listed tickers — at zero marginal cost.
+**The product isn't "trade the live call." It's "wake up with the
+depth Wall Street has — not the depth Twitter has."**
+
+---
+
+## The five named-investor agents
+
+Each sub-agent is modeled on the published investment philosophy of a
+recognizable public investor. Same code, same tools, same Gemini 3
+brain — what differs is the *lens*:
+
+| Internal name | Persona | Lens |
+|---|---|---|
+| `bull_analyst` | **Cathie Wood** | 5-year disruptive-innovation, TAM expansion through 2030 |
+| `bear_analyst` | **Michael Burry** | Forensic accounting, the contradiction the bulls miss |
+| `quant_analyst` | **Stan Druckenmiller** | Concentrated bets, macro-tilted asymmetric setups over 6–12 mo |
+| `news_analyst` | **Jim Cramer** | Rapid headline reaction, PT-change momentum, narrative pivots |
+| `macro_analyst` | **Howard Marks** | Cycle-position, "is the price compensating us for the risk we're taking" |
+
+The Chairman delegates to whichever lens is relevant, cites them by
+their investor namesake in the synthesis, and surfaces the dissent
+when the lenses disagree.
+
+We are **not** impersonating the real individuals — these are agents
+trained to analyze IN THE STYLE of each investor's *published*
+philosophy. The legal framing is the same as "in the style of a
+Warren-Buffett-style investor" in a sell-side note.
+
+---
+
+## Atlas Vector Search memory — the loop closes every session
+
+Every verdict is embedded with `gemini-embedding-001` (768-dim) and
+stored in MongoDB Atlas with a `vectorSearch` index. The Chairman
+calls `find_similar_past_verdict` **before** synthesizing each new
+verdict and `remember_verdict` **after**. Today's call is anchored in
+yesterday's. Tomorrow's call will recall today's.
+
+The seeded corpus already contains historical verdicts on NVDA × 2,
+MSFT, TSLA, AAPL, AMD, GOOGL, META, PLTR, NFLX, AMZN — including a
+NVDA Q1 2024 verdict where the Burry-persona flagged the
+compute-capacity language that preceded a 6.2% drop in 7 days. Query
+the live API at `POST /api/vector/search` to see semantic recall
+working independent of the Gemini reasoning path.
 
 ## Architecture
 
@@ -59,9 +102,11 @@ flowchart TD
 
     subgraph google[Google Cloud Agent Builder]
         adk --> chair[earningsedge_chairman<br/>LlmAgent · Gemini 3.5 Flash]
-        chair -. transfer_to_agent .-> bull[bull_analyst<br/>growth lens]
-        chair -. transfer_to_agent .-> bear[bear_analyst<br/>risk lens]
-        chair -. transfer_to_agent .-> quant[quant_analyst<br/>ratios vs peers]
+        chair -. transfer_to_agent .-> bull[bull_analyst<br/>Cathie Wood lens]
+        chair -. transfer_to_agent .-> bear[bear_analyst<br/>Michael Burry lens]
+        chair -. transfer_to_agent .-> quant[quant_analyst<br/>Druckenmiller lens]
+        chair -. transfer_to_agent .-> news[news_analyst<br/>Jim Cramer lens]
+        chair -. transfer_to_agent .-> macro[macro_analyst<br/>Howard Marks lens]
     end
 
     orch --> live[Gemini Live 3.1<br/>bidiGenerateContent]
@@ -79,14 +124,19 @@ flowchart TD
     bull --> tools
     bear --> tools
     quant --> tools
+    news --> tools
+    macro --> tools
     chair --> tools
 
     subgraph mcp[MongoDB MCP partner track]
         mcpsrv[mongodb-mcp-server<br/>Streamable HTTP]
-        atlas[(MongoDB Atlas<br/>sessions · trades · verdicts)]
+        atlas[(MongoDB Atlas<br/>sessions · trades · verdicts<br/>+ vectorSearch index)]
+        embed[gemini-embedding-001<br/>768-dim verdict vectors]
     end
 
-    chair -.remember/recall.-> mcpsrv
+    chair -.find_similar_past_verdict.-> mcpsrv
+    chair -.remember_verdict.-> embed
+    embed --> mcpsrv
     orch -.session start / trade.-> mcpsrv
     mcpsrv --> atlas
 ```

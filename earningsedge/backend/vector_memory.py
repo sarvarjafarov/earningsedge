@@ -40,7 +40,12 @@ COLLECTION = "verdicts"
 
 def _client() -> MongoClient:
     uri = os.environ["MONGODB_URI"]
-    return MongoClient(uri, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=15000)
+    return MongoClient(
+        uri,
+        tlsCAFile=certifi.where(),
+        serverSelectionTimeoutMS=int(os.getenv("MONGODB_SELECT_TIMEOUT_MS", "5000")),
+        socketTimeoutMS=8000,
+    )
 
 
 def _db():
@@ -111,9 +116,11 @@ async def find_similar_verdicts(
 ) -> list[dict[str, Any]]:
     """Run a vector-similarity search against past verdicts.
 
-    Use this from the Chairman's tool surface to surface relevant past
-    decisions on the same or similar tickers. Returns a list of plain
-    dicts so ADK can pass them straight back to Gemini.
+    Tries Atlas ``$vectorSearch`` first. When Atlas SSL is failing
+    (intermittent free-tier issue from cloud egress) we fall through
+    to ``verdict_corpus.fallback_search`` — a pure-Python cosine
+    similarity over the shipped seed corpus. The caller can't tell
+    which path served them; both return the same shape.
     """
     import asyncio
 
@@ -150,7 +157,22 @@ async def find_similar_verdicts(
             ]
             return list(_db()[COLLECTION].aggregate(pipeline))
         except Exception as exc:  # noqa: BLE001
-            _log.warning("vector search failed: %s", exc)
+            _log.warning("atlas vector search failed: %s", exc)
             return []
 
-    return await asyncio.to_thread(_sync)
+    try:
+        rows = await asyncio.wait_for(asyncio.to_thread(_sync), timeout=6.0)
+    except asyncio.TimeoutError:
+        _log.info("atlas vector search timed out, falling back to corpus")
+        rows = []
+
+    if rows:
+        return rows
+
+    # Atlas unavailable — fall back to in-memory corpus.
+    try:
+        from verdict_corpus import fallback_search
+        return await fallback_search(query, ticker=ticker, k=k)
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("corpus fallback failed: %s", exc)
+        return []

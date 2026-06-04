@@ -254,9 +254,15 @@ async def find_similar_past_verdict(
         How many neighbors to return. Default 5; cap at 20.
     """
     try:
+        import asyncio
         from vector_memory import find_similar_verdicts
-        rows = await find_similar_verdicts(query, ticker=ticker or None, k=min(int(k), 20))
+        rows = await asyncio.wait_for(
+            find_similar_verdicts(query, ticker=ticker or None, k=min(int(k), 20)),
+            timeout=8.0,
+        )
         return {"ok": True, "matches": rows}
+    except asyncio.TimeoutError:
+        return {"ok": False, "matches": [], "error": "vector search timed out (Atlas unreachable)"}
     except Exception as exc:  # noqa: BLE001
         return {"ok": False, "matches": [], "error": str(exc)}
 
