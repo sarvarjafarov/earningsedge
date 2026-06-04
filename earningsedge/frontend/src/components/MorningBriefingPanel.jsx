@@ -11,9 +11,14 @@ import { getApiBase, sessionHeaders } from '../apiConfig';
  * triggers the pipeline on demand — useful for the demo so a judge
  * can see the verdicts populate in real time.
  */
+// Same default the backend seeds; we hydrate the UI immediately with this
+// so users don't see an empty card while the API call is in flight on a
+// cold Heroku dyno.
+const DEFAULT_WATCHLIST = ['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'TSLA', 'AMZN'];
+
 export default function MorningBriefingPanel({ onPickTicker }) {
   const API_BASE = getApiBase();
-  const [watchlist, setWatchlist] = useState([]);
+  const [watchlist, setWatchlist] = useState(DEFAULT_WATCHLIST);
   const [briefing, setBriefing] = useState(null);
   const [calendar, setCalendar] = useState([]);
   const [adding, setAdding] = useState('');

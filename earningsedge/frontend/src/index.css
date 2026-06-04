@@ -8856,3 +8856,128 @@ that class so they don't affect normal browser rendering.
 .news-digest__title:hover { color: var(--accent-cyan); }
 .news-digest__meta { color: var(--text-dim); font-size: 10px; font-family: var(--font-mono); display: flex; gap: 6px; flex-wrap: wrap; }
 
+/* --- Simplified empty state (v3) ----------------------------------------- */
+.company-empty--v3 {
+  max-width: 1100px;
+  margin: 40px auto 60px;
+  padding: 0 24px;
+}
+.company-empty--v3 .company-empty-title {
+  font-size: 44px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px;
+}
+.company-empty--v3 .company-empty-title-accent { color: var(--accent-cyan); }
+.company-empty--v3 .company-empty-lede {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  max-width: 720px;
+  margin: 0 0 28px;
+}
+.company-empty-custom {
+  margin-top: 14px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  max-width: 560px;
+}
+.company-empty-custom summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  list-style: none;
+}
+.company-empty-custom summary::-webkit-details-marker { display: none; }
+.company-empty-custom summary::before { content: '+ '; color: var(--text-dim); }
+.company-empty-custom[open] summary::before { content: '− '; }
+.company-empty-custom .company-empty-form {
+  display: flex; gap: 8px; margin-top: 10px;
+}
+.company-empty-custom input.coverage-input {
+  flex: 1; max-width: 200px;
+}
+@media (max-width: 700px) {
+  .company-empty--v3 .company-empty-title { font-size: 30px; }
+  .company-empty--v3 .company-empty-lede { font-size: 14px; }
+}
+
+/* --- 3-panel primary grid (verdict / memory / inputs) -------------------- */
+.primary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 16px;
+  margin: 20px 0;
+}
+@media (max-width: 1100px) {
+  .primary-grid { grid-template-columns: 1fr; }
+}
+.primary-grid__main { min-width: 0; }
+.primary-grid__side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.primary-grid__side .adk-panel,
+.primary-grid__side .pattern-alerts,
+.primary-grid__side .news-digest { margin: 0; }
+
+/* --- Verdict card inside ADK panel --------------------------------------- */
+.adk-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent-cyan);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 12px 0 14px;
+}
+.adk-card--add { border-left-color: var(--accent-green); background: rgba(0, 255, 136, 0.06); }
+.adk-card--hold { border-left-color: var(--accent-yellow); background: rgba(255, 195, 0, 0.06); }
+.adk-card--avoid { border-left-color: var(--accent-red); background: rgba(255, 59, 92, 0.06); }
+.adk-card__action {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+.adk-card--add .adk-card__action { color: var(--accent-green); }
+.adk-card--hold .adk-card__action { color: var(--accent-yellow); }
+.adk-card--avoid .adk-card__action { color: var(--accent-red); }
+.adk-card__metrics {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.adk-card__metric { display: flex; flex-direction: column; gap: 2px; }
+.adk-card__metric-key {
+  color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+}
+.adk-card__metric-val {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+.adk-card__drivers {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.adk-card__drivers li {
+  padding: 4px 0 4px 14px;
+  position: relative;
+}
+.adk-card__drivers li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--text-dim);
+}
+

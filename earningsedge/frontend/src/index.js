@@ -5,13 +5,14 @@ import App from './App';
 import Landing from './Landing';
 
 /**
- * Lightweight history-based router. Two routes only:
- *   /     → Landing (marketing page)
- *   /app  → App (the cockpit)
+ * Lightweight history-based router. Cockpit-first:
+ *   /            → App (the cockpit) — what hackathon judges + users see
+ *   /marketing   → Landing (the legacy marketing page, kept for reference)
  *
- * No external dependency; uses pushState + popstate. Children receive a
- * `navigate(path)` callback so the Landing CTAs and the App back-to-home
- * link can switch routes without a full page reload.
+ * Previously `/` was the marketing wall and the cockpit was behind a
+ * click — this hid the new named-investor sub-agents, the morning
+ * briefing, and Atlas Vector Search memory engine. The cockpit is the
+ * product; the landing is supplementary.
  */
 function Router() {
   const [path, setPath] = useState(() => window.location.pathname || '/');
@@ -29,10 +30,10 @@ function Router() {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, []);
 
-  if (path.startsWith('/app')) {
-    return <App onBackToLanding={() => navigate('/')} />;
+  if (path.startsWith('/marketing')) {
+    return <Landing onOpenApp={() => navigate('/')} />;
   }
-  return <Landing onOpenApp={() => navigate('/app')} />;
+  return <App onBackToLanding={() => navigate('/marketing')} />;
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

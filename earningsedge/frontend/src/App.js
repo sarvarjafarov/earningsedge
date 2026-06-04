@@ -518,10 +518,12 @@ function App({ onBackToLanding }) {
     }, 30000);
   };
 
-  const submitCoverage = async (e) => {
-    e.preventDefault();
-    const tickerRaw = coverageForm.ticker.trim();
-    const companyRaw = coverageForm.company_name.trim();
+  const submitCoverage = async (e, override) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    // Accept an override so the watchlist chip click can pass the ticker
+    // synchronously rather than relying on React's batched setState.
+    const tickerRaw = (override?.ticker || coverageForm.ticker || '').trim();
+    const companyRaw = (override?.company_name || coverageForm.company_name || '').trim();
     if (!tickerRaw && !companyRaw) {
       setErrorMsg('Enter a ticker (e.g. NVDA) or a company name — one is enough.');
       return;
@@ -1104,29 +1106,11 @@ function App({ onBackToLanding }) {
     }
   }, [TOUR_DONE_KEY]);
 
-  /** Has the user ever finished (or skipped) the tour? */
-  const tourDone = (() => {
-    try { return window.localStorage.getItem(TOUR_DONE_KEY) === '1'; } catch (_) { return false; }
-  })();
-
-  // Auto-launch the tour after the dashboard layout has settled. Firing too
-  // early (before context bar / sub-nav are painted, before the trade hero
-  // collapses to its sticky shell) means the spotlight measures coordinates
-  // that change a moment later. We wait either for at least one data slice
-  // to arrive (indicating WS-driven layout has settled) OR a 1.5s settle
-  // delay if no data has arrived. Empty-hero tour is opt-in via the pill.
-  const autoLaunchedRef = useRef(false);
-  useEffect(() => {
-    if (autoLaunchedRef.current) return;
-    if (tourDone) { autoLaunchedRef.current = true; return; }
-    if (!hasLoaded) return;
-    const anyDataIn = Object.values(dataLoaded).some(Boolean);
-    autoLaunchedRef.current = true;
-    const settleMs = anyDataIn ? 300 : 1500;
-    const t = window.setTimeout(() => setTourOpen(true), settleMs);
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasLoaded, tourDone]);
+  /** Tour is now strictly opt-in via the in-app help button. The previous
+   *  auto-launch on first ticker load blocked the verdict + agent panels
+   *  with a modal overlay — bad first impression for hackathon judges. */
+  // eslint-disable-next-line no-unused-vars
+  const tourDone = true;
 
   /** Once every loading slice has arrived, the give-up timer is moot. */
   useEffect(() => {
@@ -1429,71 +1413,42 @@ function App({ onBackToLanding }) {
       ) : null}
 
       {appTab === 'company' && !hasLoaded ? (
-        // ============= STAGE 1 — empty / briefing =============
-        <section className="company-empty" aria-labelledby="empty-heading">
-          <div className="company-empty-eyebrow">
-            <span>Welcome to EarningsEdge</span>
-            <button
-              type="button"
-              className="company-empty-tour-pill is-pulsing"
-              onClick={() => setTourOpen(true)}
-              title="Take a 90-second guided tour"
-            >
-              <span aria-hidden="true">👋</span> 90-second tour
-            </button>
-          </div>
+        // ============= STAGE 1 — empty / briefing (SIMPLIFIED v3) =============
+        <section className="company-empty company-empty--v3" aria-labelledby="empty-heading">
           <h1 id="empty-heading" className="company-empty-title">
-            Sleep through earnings calls. Wake up with conviction.
+            Sleep through earnings calls.<br/>
+            <span className="company-empty-title-accent">Wake up with conviction.</span>
           </h1>
           <p className="company-empty-lede">
-            Five named-investor agents — modeled on Cathie Wood, Michael Burry, Stan
-            Druckenmiller, Jim Cramer, and Howard Marks — debate every earnings call you miss.
-            Atlas Vector Search remembers every prior verdict. You wake up with the depth a
-            sell-side analyst has, not the depth a tweet has.
+            Five named-investor agents — Cathie Wood, Michael Burry, Stan Druckenmiller,
+            Jim Cramer, Howard Marks — debate every call you miss. Atlas Vector Search
+            remembers every prior verdict.
           </p>
 
-          {/* Morning briefing surfaces overnight verdicts + watchlist + calendar
-              even before a ticker is loaded — makes the autonomy story visible
-              the moment a judge lands on the demo URL. */}
+          {/* Watchlist + briefing — the primary entry point. Click a chip to load. */}
           <MorningBriefingPanel
             onPickTicker={(t) => {
               setCoverageForm({ ticker: t, company_name: '', quarter: '', year: '' });
-              // Wait one tick for state to update before triggering coverage.
-              setTimeout(() => submitCoverage({ preventDefault: () => {} }), 0);
+              // Pass the ticker explicitly so we don't depend on the setState
+              // having flushed before the submit fires.
+              submitCoverage(null, { ticker: t });
             }}
           />
 
-          <form className="company-empty-form" onSubmit={submitCoverage}>
-            <div className="company-empty-form-row" data-tour="empty-form">
-              <label htmlFor="empty-coverage-ticker" className="visually-hidden">Ticker symbol</label>
+          {/* Custom-ticker form collapsed by default — most users use the watchlist. */}
+          <details className="company-empty-custom">
+            <summary>…or load a custom ticker</summary>
+            <form className="company-empty-form" onSubmit={submitCoverage}>
               <input
                 id="empty-coverage-ticker"
                 name="ee-ticker-search"
                 type="text"
                 className="coverage-input company-empty-input-primary"
-                placeholder="Ticker (e.g. NVDA)"
+                placeholder="NVDA"
                 value={coverageForm.ticker}
                 onChange={(e) => setCoverageForm((f) => ({ ...f, ticker: e.target.value }))}
                 maxLength={12}
                 autoCapitalize="characters"
-                autoFocus
-                disabled={mode === 'briefing'}
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck="false"
-                data-1p-ignore="true"
-                data-lpignore="true"
-                data-form-type="other"
-              />
-              <label htmlFor="empty-coverage-company" className="visually-hidden">Company name</label>
-              <input
-                id="empty-coverage-company"
-                name="ee-company-search"
-                type="text"
-                className="coverage-input coverage-input-grow"
-                placeholder="…or company name"
-                value={coverageForm.company_name}
-                onChange={(e) => setCoverageForm((f) => ({ ...f, company_name: e.target.value }))}
                 disabled={mode === 'briefing'}
                 autoComplete="off"
                 autoCorrect="off"
@@ -1504,102 +1459,13 @@ function App({ onBackToLanding }) {
               />
               <button
                 type="submit"
-                className="btn btn-primary company-empty-cta"
+                className="btn btn-primary"
                 disabled={coverageLoading || mode === 'briefing'}
               >
-                {coverageLoading ? 'Loading…' : 'Load company →'}
+                {coverageLoading ? 'Loading…' : 'Load →'}
               </button>
-            </div>
-            <div className="company-empty-form-meta">
-              <label htmlFor="empty-coverage-quarter" className="visually-hidden">Fiscal quarter</label>
-              <input
-                id="empty-coverage-quarter"
-                name="ee-quarter-search"
-                type="text"
-                className="coverage-input coverage-input-sm"
-                placeholder="Quarter (Q1–Q4) — optional"
-                value={coverageForm.quarter}
-                onChange={(e) => setCoverageForm((f) => ({ ...f, quarter: e.target.value }))}
-                disabled={mode === 'briefing'}
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck="false"
-                data-1p-ignore="true"
-                data-lpignore="true"
-              />
-              <label htmlFor="empty-coverage-year" className="visually-hidden">Fiscal year</label>
-              <input
-                id="empty-coverage-year"
-                name="ee-year-search"
-                type="text"
-                className="coverage-input coverage-input-sm"
-                placeholder="Year — optional"
-                value={coverageForm.year}
-                onChange={(e) => setCoverageForm((f) => ({ ...f, year: e.target.value }))}
-                disabled={mode === 'briefing'}
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck="false"
-                data-1p-ignore="true"
-                data-lpignore="true"
-              />
-              <span className="company-empty-or">or</span>
-              {mode === 'briefing' ? (
-                <button
-                  type="button"
-                  className="btn btn-primary company-empty-voice-active"
-                  data-tour="empty-voice"
-                  onClick={finishVoiceBriefing}
-                >
-                  ⏹ Done speaking
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-ghost company-empty-voice"
-                  data-tour="empty-voice"
-                  onClick={startVoiceBriefing}
-                  title="Open the mic, say the company name, and we'll resolve it"
-                >
-                  <span aria-hidden="true">🎤</span> Speak the company name
-                </button>
-              )}
-            </div>
-            {mode === 'briefing' && (
-              <div className="company-empty-listening" role="status" aria-live="polite">
-                <span className="live-dot" />
-                Mic on — say the company and quarter, then click <strong>Done speaking</strong>.
-              </div>
-            )}
-          </form>
-
-          {recentTickers.length > 0 && mode !== 'briefing' && (
-            <div className="company-empty-recents" aria-label="Recently loaded companies" data-tour="empty-recents">
-              <span className="company-empty-recents-label">Recent</span>
-              <div className="company-empty-recents-list">
-                {recentTickers.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    className="recent-chip"
-                    onClick={() => loadRecent(t)}
-                    disabled={coverageLoading}
-                    title={`Load ${t} again`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                className="company-empty-recents-clear"
-                onClick={clearRecents}
-                title="Clear the recent list"
-              >
-                Clear
-              </button>
-            </div>
-          )}
+            </form>
+          </details>
 
           {errorMsg && (
             <div className="error-banner" role="alert">
@@ -1890,18 +1756,22 @@ function App({ onBackToLanding }) {
           ))}
         </div>
 
-        {/* Pattern alerts surface similar past verdicts from MongoDB Atlas
-            Vector Search the moment a ticker is loaded — makes the memory
-            engine visible without clicking anything. */}
-        <PatternAlertsPanel ticker={identified?.ticker} />
+        {/* 3-panel layout: Verdict (ADK Chairman) · Memory (Pattern Alerts) · Inputs (News).
+            Replaces the prior stack of 5+ panels. Visible on every cockpit tab so
+            judges see the agent + memory + news the moment a ticker is loaded. */}
+        <div className="primary-grid">
+          <div className="primary-grid__main">
+            <ChairmanADKPanel ticker={identified?.ticker} />
+          </div>
+          <aside className="primary-grid__side">
+            <PatternAlertsPanel ticker={identified?.ticker} />
+            <NewsDigestPanel ticker={identified?.ticker} />
+          </aside>
+        </div>
 
-        {/* Always-visible Agent Builder panel. Auto-runs on ticker change
-            so judges loading a company see the ADK path execute without
-            having to switch tabs. */}
-        <ChairmanADKPanel ticker={identified?.ticker} />
-
-        {/* Recent news digest — what the personas are reading. */}
-        <NewsDigestPanel ticker={identified?.ticker} />
+        {/* Legacy panels (committee/peers/macro/transcript/metrics) live below
+            and are reached via the existing subnav tabs. Hidden when the user
+            chooses to focus on the agent view above. */}
 
         {companyView === 'overview' && (
           <div className="dashboard-grid dashboard-grid--overview">

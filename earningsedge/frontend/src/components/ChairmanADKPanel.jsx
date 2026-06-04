@@ -1,6 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getApiBase, sessionHeaders } from '../apiConfig';
 
+/** Pull the first JSON object that looks like a score_block out of the
+ *  agent's prose response. The agents are instructed to emit one
+ *  inside ```json fences```; sometimes they emit it inline. */
+function extractScoreBlock(text) {
+  if (!text) return null;
+  // Try fenced JSON block first
+  const fenced = /```json\s*([\s\S]*?)```/i.exec(text) || /```\s*({[\s\S]*?})\s*```/i.exec(text);
+  const candidates = [];
+  if (fenced && fenced[1]) candidates.push(fenced[1]);
+  // Also try to find a bare {...} object that has "score" or "label"
+  const bare = /\{[\s\S]{0,2000}?(?:"label"|"score"|"confidence")[\s\S]{0,2000}?\}/.exec(text);
+  if (bare && bare[0]) candidates.push(bare[0]);
+  for (const c of candidates) {
+    try {
+      const obj = JSON.parse(c);
+      if (obj && (obj.label || obj.score || obj.confidence)) return obj;
+    } catch (_) { /* try next */ }
+  }
+  return null;
+}
+
+/** Remove fenced ```json``` blocks from the prose so we don't render
+ *  them twice (once as a card, once as raw text). */
+function stripJsonBlocks(text) {
+  return (text || '')
+    .replace(/```json\s*[\s\S]*?```/gi, '')
+    .replace(/```\s*\{[\s\S]*?\}\s*```/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 /**
  * ChairmanADKPanel — runs the EarningsEdge Analyst Chairman LlmAgent
  * (Google Cloud Agent Builder / ADK) on a user prompt and renders the
@@ -167,6 +198,57 @@ export default function ChairmanADKPanel({ ticker, autoRun = true }) {
 
       {result && (
         <div className="adk-panel__result">
+          {/* Extract any structured score_block JSON from the response and
+              render it as a verdict card. Falls back to plain prose if no
+              JSON block is found. */}
+          {(() => {
+            const parsed = extractScoreBlock(result.response || '');
+            if (!parsed) return null;
+            const label = (parsed.label || 'Hold').toLowerCase();
+            const accent =
+              label.includes('buy') || label.includes('add') || label.includes('strong')
+                ? 'add'
+                : label.includes('sell') || label.includes('avoid') || label.includes('trim')
+                ? 'avoid'
+                : 'hold';
+            return (
+              <div className={`adk-card adk-card--${accent}`}>
+                <div className="adk-card__action">{parsed.label || 'Hold'}</div>
+                <div className="adk-card__metrics">
+                  {typeof parsed.score === 'number' && (
+                    <div className="adk-card__metric">
+                      <span className="adk-card__metric-key">Score</span>
+                      <span className="adk-card__metric-val">{parsed.score}</span>
+                    </div>
+                  )}
+                  {parsed.confidence && (
+                    <div className="adk-card__metric">
+                      <span className="adk-card__metric-key">Confidence</span>
+                      <span className="adk-card__metric-val">{String(parsed.confidence).toUpperCase()}</span>
+                    </div>
+                  )}
+                  {Array.isArray(parsed.drivers) && (
+                    <div className="adk-card__metric">
+                      <span className="adk-card__metric-key">Drivers</span>
+                      <span className="adk-card__metric-val">{parsed.drivers.length}</span>
+                    </div>
+                  )}
+                </div>
+                {Array.isArray(parsed.drivers) && parsed.drivers.length > 0 && (
+                  <ul className="adk-card__drivers">
+                    {parsed.drivers.slice(0, 4).map((d, i) => (
+                      <li key={i}>
+                        {typeof d === 'string'
+                          ? d
+                          : d.evidence || d.driver || d.description || JSON.stringify(d)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })()}
+
           <div className="adk-panel__meta">
             <span><strong>Agent:</strong> {result.agent}</span>
             <span><strong>Model:</strong> {result.model}</span>
@@ -174,9 +256,9 @@ export default function ChairmanADKPanel({ ticker, autoRun = true }) {
               <span><strong>Tool calls:</strong> {result.tool_calls.length}</span>
             )}
           </div>
-          <div className="adk-panel__response">{result.response}</div>
+          <div className="adk-panel__response">{stripJsonBlocks(result.response || '')}</div>
           {Array.isArray(result.tool_calls) && result.tool_calls.length > 0 && (
-            <details className="adk-panel__trace" open={running === false && result.tool_calls.length <= 5}>
+            <details className="adk-panel__trace">
               <summary>Tool-call trace ({result.tool_calls.length})</summary>
               <ol>
                 {result.tool_calls.map((tc, i) => (
