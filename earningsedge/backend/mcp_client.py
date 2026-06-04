@@ -84,9 +84,15 @@ def _mcp_url() -> str:
 
 
 async def mcp_call(tool: str, args: dict[str, Any]) -> Any:
-    """Primary entry point. MCP-first, pymongo fallback."""
+    """Primary entry point. MCP-first when configured, pymongo fallback.
+
+    When MONGODB_MCP_URL is unset (e.g. on Heroku where the partner MCP
+    server isn't run as a sidecar to save memory), we skip the MCP path
+    entirely so a connection-refused hang doesn't burn the request
+    budget.
+    """
     global _mcp_consecutive_failures
-    if _mcp_consecutive_failures < _MCP_FAILURE_THRESHOLD:
+    if os.getenv("MONGODB_MCP_URL", "").strip() and _mcp_consecutive_failures < _MCP_FAILURE_THRESHOLD:
         try:
             result = await asyncio.wait_for(_mcp_call_strict(tool, args), timeout=_MCP_TIMEOUT_S)
             _mcp_consecutive_failures = 0

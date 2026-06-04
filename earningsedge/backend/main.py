@@ -77,6 +77,27 @@ async def lifespan(app: FastAPI):
     # Start the durable MongoDB-MCP write queue. No-op if MCP / Atlas are
     # unreachable — writes silently buffer and replay when the cluster recovers.
     await _atlas_writer.start()
+    # Warm the pymongo client in the background so the first user request
+    # doesn't pay the Atlas SSL handshake cost. Non-blocking — if the
+    # warmup fails we still boot.
+    async def _warm_atlas() -> None:
+        if not os.getenv("MONGODB_URI", "").strip():
+            return
+        try:
+            from mcp_client import mcp_call
+            await asyncio.wait_for(
+                mcp_call("find", {
+                    "database": os.getenv("MONGODB_DB", "earningsedge"),
+                    "collection": "verdicts",
+                    "filter": {},
+                    "limit": 1,
+                }),
+                timeout=20.0,
+            )
+            _log.info("atlas client warmed")
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("atlas warm-up failed (non-fatal): %s", exc)
+    asyncio.create_task(_warm_atlas())
     try:
         yield
     finally:
@@ -573,8 +594,21 @@ async def mcp_status() -> dict[str, Any]:
     if mongodb_uri:
         try:
             from mcp_client import mcp_call
-            await mcp_call("list-databases", {})
+            # Probe by counting docs in our own collection — works on Atlas
+            # free tier (no admin privileges needed) and exercises both
+            # the auth path and a real read.
+            await asyncio.wait_for(
+                mcp_call("find", {
+                    "database": mongodb_db,
+                    "collection": "verdicts",
+                    "filter": {},
+                    "limit": 1,
+                }),
+                timeout=10.0,
+            )
             probe_ok = True
+        except asyncio.TimeoutError:
+            probe_error = "probe timed out (Atlas slow from this region)"
         except Exception as exc:  # noqa: BLE001
             probe_error = f"{type(exc).__name__}: {exc}"
 

@@ -1,0 +1,16 @@
+# Slim production requirements — fits on Heroku Basic (512MB).
+# yfinance + pandas-ta dropped (saves ~250MB); the corresponding code
+# paths are guarded with try/except and degrade gracefully.
+google-genai>=1.0.0
+google-adk>=0.3.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+websockets>=12.0
+python-dotenv>=1.0.0
+httpx>=0.27.0
+pydub>=0.25.1
+aiofiles>=23.2.1
+alpaca-py>=0.24.0
+mcp>=1.0.0
+pymongo>=4.6.0
+certifi>=2024.7.4

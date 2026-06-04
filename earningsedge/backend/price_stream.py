@@ -7,7 +7,16 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Awaitable, Callable
 
-import yfinance as yf
+# yfinance import is lazy so the backend can boot in memory-constrained
+# environments (e.g. Heroku Basic 512MB) without pulling in pandas, numpy,
+# and the rest of the yfinance dep tree. When yfinance isn't available
+# PriceStream falls back to a no-op price loop.
+try:
+    import yfinance as yf
+    _YFINANCE_AVAILABLE = True
+except ImportError:
+    yf = None  # type: ignore
+    _YFINANCE_AVAILABLE = False
 
 BroadcastFn = Callable[[dict[str, Any]], Awaitable[None]]
 
@@ -19,6 +28,8 @@ class PriceStream:
 
     async def start(self, ticker: str) -> None:
         self._running = True
+        if not _YFINANCE_AVAILABLE:
+            return
         sym = ticker.strip().upper()
         loop = asyncio.get_running_loop()
         while self._running:
