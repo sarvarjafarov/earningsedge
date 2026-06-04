@@ -43,3 +43,4 @@ Thumbs.db
 # Cloudflare quick tunnel local artifacts
 .cloudflared/
 tunnel.log
+earningsedge/backend/static/
