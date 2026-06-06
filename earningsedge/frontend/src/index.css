@@ -9158,6 +9158,48 @@ that class so they don't affect normal browser rendering.
 .full-coverage__tab:hover { color: var(--accent-cyan); }
 .full-coverage__tab.is-active { background: var(--accent-cyan); color: #061321; border-color: var(--accent-cyan); }
 
+/* --- Cockpit v5 tabs (primary navigation inside Company view) ----------- */
+.cockpit-tabs {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  margin: 0 0 20px;
+  padding-bottom: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.cockpit-tab {
+  background: transparent; color: var(--text-secondary);
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 11px 16px;
+  font-size: 13px; font-family: var(--font-ui); font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.cockpit-tab:hover { color: var(--text-primary); }
+.cockpit-tab.is-active {
+  color: var(--accent-cyan);
+  border-bottom-color: var(--accent-cyan);
+  font-weight: 600;
+}
+.cockpit-pane {
+  display: flex; flex-direction: column; gap: 16px;
+  margin-bottom: 24px;
+}
+.cockpit-empty {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 28px 20px;
+  color: var(--text-dim);
+  text-align: center;
+  font-size: 13px;
+}
+@media (max-width: 700px) {
+  .cockpit-tab { padding: 10px 12px; font-size: 12px; }
+}
+
 /* --- Pattern Matches panel (live transcript ⇄ Vector Search) ------------- */
 .pattern-matches {
   background: linear-gradient(180deg, rgba(255, 195, 0, 0.06), rgba(10, 22, 40, 0.85));

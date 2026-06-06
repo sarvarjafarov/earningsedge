@@ -623,7 +623,19 @@ async def resolve_coverage_inputs(
         fund = await get_fundamentals(t)
         if isinstance(fund, dict) and fund.get("error"):
             return {"error": f"Could not verify ticker {t}. Check the symbol and try again."}
-        name = (fund.get("name") or "").strip() or t
+        name = (fund.get("name") or "").strip()
+        # Heroku slim build has no yfinance, so fund["name"] falls back to
+        # the ticker. Fetch the company name from Finnhub's profile endpoint
+        # directly in that case.
+        if not name or name.upper() == t:
+            try:
+                profile = await _finnhub_get("stock/profile2", {"symbol": t})
+                if isinstance(profile, dict):
+                    name = (profile.get("name") or "").strip()
+            except Exception:
+                pass
+        if not name:
+            name = t
         return {"ticker": t, "company_name": name}
 
     if not FINNHUB_API_KEY:

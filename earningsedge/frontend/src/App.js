@@ -128,8 +128,13 @@ function App({ onBackToLanding }) {
    *  `overview` — transcript + metrics + sentiment (the "what's happening" view)
    *  `peers`    — competitors + analyst + news (the "what does the market think" view)
    *  `macro`    — macro + technical (the "broader context" view)
-   *  `committee`— full agent vote breakdown (the "why" view) */
-  const [companyView, setCompanyView] = useState('overview');
+   *  `committee`— full agent vote breakdown (the "why" view)
+   *  --- v5 tabs ---
+   *  `verdict`   — agent verdict card + persona pulse (default)
+   *  `live`      — transcript + persona pulse + pattern matches during audio
+   *  `memory`    — Atlas Vector Search past verdicts
+   *  `sentiment` — news sentiment gauge + ranked headlines */
+  const [companyView, setCompanyView] = useState('verdict');
   /** When true, show the "Change company" form even after a ticker is loaded. */
   const [showChangeCompany, setShowChangeCompany] = useState(false);
   /** When non-null, the Reset button is awaiting confirmation. */
@@ -446,7 +451,7 @@ function App({ onBackToLanding }) {
     setTechnicalData(null);
     setAnalystOpinion(null);
     setAnalystOpinionError(null);
-    setCompanyView('overview');
+    setCompanyView('verdict');
     setShowChangeCompany(false);
     setConfirmReset(false);
     setShowPreflight(false);
@@ -719,7 +724,7 @@ function App({ onBackToLanding }) {
       setSessionStatus('running');
       // Live transcript belongs in Overview — auto-jump there so the user
       // doesn't miss the speech they just started streaming.
-      setCompanyView('overview');
+      setCompanyView('verdict');
     } catch (err) {
       const msg = String(err?.message || err);
       const name = err?.name || '';
@@ -1729,100 +1734,100 @@ function App({ onBackToLanding }) {
           </div>
         )}
 
-        {/* === FOCUSED COCKPIT (v4) =======================================
-            The verdict view is the screen. Persona Pulse + Pattern Matches
-            sit immediately above the ADK Chairman card. Memory + News
-            live as compact side panels. Everything else (legacy committee,
-            peers, macro, technicals, full transcript, metrics) is hidden
-            behind a single "Show full coverage details" expander. */}
+        {/* === COCKPIT v5 — proper tab navigation =========================
+            Six clearly-named tabs, each with a distinct purpose.
+            Verdict is the default landing tab. Everything is one click. */}
 
-        {/* Five named investors react inline (auto-fires when transcript exists). */}
-        <PersonaPulsePanel ticker={identified?.ticker} transcript={transcript} />
-
-        {/* Vector-search hits — only renders when a match is found. */}
-        <PatternMatchesPanel ticker={identified?.ticker} transcript={transcript} />
-
-        {/* Primary verdict + side panels. */}
-        <div className="primary-grid">
-          <div className="primary-grid__main">
-            <ChairmanADKPanel ticker={identified?.ticker} />
-          </div>
-          <aside className="primary-grid__side">
-            <PatternAlertsPanel ticker={identified?.ticker} />
-            <NewsDigestPanel ticker={identified?.ticker} />
-          </aside>
+        <div className="cockpit-tabs" role="tablist" aria-label="Cockpit view">
+          {[
+            { id: 'verdict',   label: 'Verdict',     hint: 'Agent synthesis — what to do' },
+            { id: 'committee', label: 'Committee',   hint: 'Weighted vote of 8 specialists' },
+            { id: 'live',      label: 'Live audio',  hint: 'Transcript · persona pulse · pattern matches' },
+            { id: 'memory',    label: 'Memory',      hint: 'Atlas Vector Search · prior verdicts' },
+            { id: 'sentiment', label: 'Sentiment',   hint: 'News sentiment · ranked headlines' },
+            { id: 'coverage',  label: 'Coverage',    hint: 'Peers · analyst · macro · technicals' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={companyView === tab.id}
+              className={`cockpit-tab ${companyView === tab.id ? 'is-active' : ''}`}
+              onClick={() => setCompanyView(tab.id)}
+              title={tab.hint}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* Live transcript only when audio is actively streaming. */}
-        {(mode === 'listening' || mode === 'paused') && (
-          <div className="dashboard-grid dashboard-grid--overview">
-            <div className="col col-left">
-              <TranscriptPanel
-                transcript={transcript}
-                transcriptPartial={transcriptPartial}
-                mode={mode}
-                audioMeter={audioMeter}
-                highlightLexicon={highlightLexicon}
-              />
-            </div>
-            <div className="col col-center">
-              {(sentiment && (sentiment.material_count || 0) > 0) && (
-                <SentimentGauge sentiment={sentiment} analystOpinion={analystOpinion} />
-              )}
+        {/* ----- VERDICT TAB (default) ----- */}
+        {companyView === 'verdict' && (
+          <div className="cockpit-pane">
+            <ChairmanADKPanel ticker={identified?.ticker} />
+            <PersonaPulsePanel ticker={identified?.ticker} transcript={transcript} />
+          </div>
+        )}
+
+        {/* ----- COMMITTEE TAB ----- */}
+        {companyView === 'committee' && (
+          <div className="cockpit-pane">
+            {tradeSignal ? (
+              <>
+                <TradeSignalHero
+                  signal={tradeSignal}
+                  fresh={signalFresh}
+                  livePrice={livePrice}
+                  ticker={identified.ticker}
+                  onOrderSuccess={() => setTradingRefreshKey((k) => k + 1)}
+                />
+                <CommitteeView tradeSignal={tradeSignal} variant="full" />
+              </>
+            ) : (
+              <div className="cockpit-empty">Committee verdict is generating — give it ~15 seconds after loading a ticker.</div>
+            )}
+          </div>
+        )}
+
+        {/* ----- LIVE AUDIO TAB ----- */}
+        {companyView === 'live' && (
+          <div className="cockpit-pane">
+            <PersonaPulsePanel ticker={identified?.ticker} transcript={transcript} />
+            <PatternMatchesPanel ticker={identified?.ticker} transcript={transcript} />
+            <div className="dashboard-grid dashboard-grid--overview">
+              <div className="col col-left">
+                <TranscriptPanel
+                  transcript={transcript}
+                  transcriptPartial={transcriptPartial}
+                  mode={mode}
+                  audioMeter={audioMeter}
+                  highlightLexicon={highlightLexicon}
+                />
+              </div>
+              <div className="col col-center">
+                <MetricsPanel metrics={metrics} />
+              </div>
             </div>
           </div>
         )}
 
-        {/* Full coverage details — collapsed by default. The legacy
-            committee / peers / macro / technicals view is here as a
-            disclosure so a curious user can dig in without it
-            dominating the default view. */}
-        <details className="full-coverage">
-          <summary>
-            <span className="full-coverage__chev">▸</span>
-            Show full coverage details
-            <span className="full-coverage__hint">— committee · peers · analyst · news · macro · technicals</span>
-          </summary>
-          <div className="full-coverage__body">
-            <div className="full-coverage__tabs">
-              {[
-                { id: 'overview', label: 'Overview' },
-                { id: 'peers', label: 'Peers & analyst' },
-                { id: 'macro', label: 'Macro & technicals' },
-                { id: 'committee', label: 'Committee' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={`full-coverage__tab ${companyView === tab.id ? 'is-active' : ''}`}
-                  onClick={() => setCompanyView(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-        {companyView === 'overview' && (
-          <div className="dashboard-grid dashboard-grid--overview">
-            <div className="col col-left">
-              <MetricsPanel metrics={metrics} />
-            </div>
-            <div className="col col-center">
-              {(sentiment && (sentiment.material_count || 0) > 0) && (
-                <SentimentGauge sentiment={sentiment} analystOpinion={analystOpinion} />
-              )}
-            </div>
+        {/* ----- MEMORY TAB ----- */}
+        {companyView === 'memory' && (
+          <div className="cockpit-pane">
+            <PatternAlertsPanel ticker={identified?.ticker} />
+            <PatternMatchesPanel ticker={identified?.ticker} transcript={transcript} />
           </div>
         )}
 
-        {companyView === 'peers' && (
-          <div className="company-view company-view--peers">
-            <CompetitorPanel
-              competitors={competitors}
-              target={identified.ticker}
-              peerValuation={peerValuation}
-            />
-            <AnalystPanel opinion={analystOpinion} opinionError={analystOpinionError} />
+        {/* ----- SENTIMENT TAB ----- */}
+        {companyView === 'sentiment' && (
+          <div className="cockpit-pane">
+            {(sentiment && (sentiment.material_count || 0) > 0) ? (
+              <SentimentGauge sentiment={sentiment} analystOpinion={analystOpinion} />
+            ) : (
+              <div className="cockpit-empty">Sentiment gauge populates once the news pipeline returns rated articles.</div>
+            )}
+            <NewsDigestPanel ticker={identified?.ticker} />
             <NewsPanel
               news={news}
               overall={newsOverall}
@@ -1831,20 +1836,19 @@ function App({ onBackToLanding }) {
           </div>
         )}
 
-        {companyView === 'macro' && (
-          <div className="company-view company-view--macro">
+        {/* ----- COVERAGE TAB (peers, analyst, macro, technicals) ----- */}
+        {companyView === 'coverage' && (
+          <div className="cockpit-pane">
+            <CompetitorPanel
+              competitors={competitors}
+              target={identified.ticker}
+              peerValuation={peerValuation}
+            />
+            <AnalystPanel opinion={analystOpinion} opinionError={analystOpinionError} />
             <MacroPanel data={macroData} />
             <TechnicalPanel data={technicalData} />
           </div>
         )}
-
-        {companyView === 'committee' && (
-          <div className="company-view company-view--committee">
-            <CommitteeView tradeSignal={tradeSignal} variant="full" />
-          </div>
-        )}
-          </div>
-        </details>
         </>
       ) : null}
 
