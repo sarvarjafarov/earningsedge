@@ -160,11 +160,22 @@ async def find_similar_verdicts(
             _log.warning("atlas vector search failed: %s", exc)
             return []
 
-    try:
-        rows = await asyncio.wait_for(asyncio.to_thread(_sync), timeout=6.0)
-    except asyncio.TimeoutError:
-        _log.info("atlas vector search timed out, falling back to corpus")
+    # Circuit breaker — if Atlas is known down, skip the 5s wait.
+    from atlas_circuit import is_open, record_failure, record_success
+    if is_open():
         rows = []
+    else:
+        try:
+            rows = await asyncio.wait_for(asyncio.to_thread(_sync), timeout=6.0)
+            if rows:
+                record_success()
+        except asyncio.TimeoutError:
+            record_failure()
+            _log.info("atlas vector search timed out, falling back to corpus")
+            rows = []
+        except Exception:
+            record_failure()
+            rows = []
 
     if rows:
         return rows

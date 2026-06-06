@@ -46,11 +46,18 @@ def get_watchlist(user_id: str | None = None) -> list[str]:
     is stored yet OR when Atlas is unreachable — the demo never shows
     an empty watchlist."""
     uid = user_id or DEFAULT_USER
+    # Circuit breaker: if Atlas is known down, return the default
+    # immediately without paying the 5s SSL-handshake wait.
+    from atlas_circuit import is_open, record_failure, record_success
+    if is_open():
+        return DEFAULT_WATCHLIST[:]
     try:
         doc = _db()[COLLECTION].find_one({"user_id": uid})
+        record_success()
         if doc and isinstance(doc.get("tickers"), list) and doc["tickers"]:
             return [t.upper() for t in doc["tickers"] if isinstance(t, str)]
     except Exception as exc:  # noqa: BLE001
+        record_failure()
         _log.warning("watchlist read failed for %s: %s", uid, exc)
     return DEFAULT_WATCHLIST[:]
 

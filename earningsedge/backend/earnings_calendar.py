@@ -23,6 +23,9 @@ import httpx
 _log = logging.getLogger("earningsedge.calendar")
 
 FMP_BASE = "https://financialmodelingprep.com/api/v3"
+# FMP deprecated /api/v3/earning_calendar in Aug 2025 (now returns 403);
+# the replacement is /stable/earnings-calendar. Fall through.
+FMP_STABLE = "https://financialmodelingprep.com/stable"
 
 
 async def fetch_window(
@@ -33,19 +36,27 @@ async def fetch_window(
     api_key = os.getenv("FMP_API_KEY", "").strip()
     if not api_key:
         return []
-    url = f"{FMP_BASE}/earning_calendar"
-    params = {"from": from_date, "to": to_date, "apikey": api_key}
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.get(url, params=params)
-            if r.status_code != 200:
+    # Try the stable endpoint first; fall back to v3 only if stable fails.
+    for url, params in (
+        (f"{FMP_STABLE}/earnings-calendar",
+         {"from": from_date, "to": to_date, "apikey": api_key}),
+        (f"{FMP_BASE}/earning_calendar",
+         {"from": from_date, "to": to_date, "apikey": api_key}),
+    ):
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                r = await client.get(url, params=params)
+                if r.status_code == 200:
+                    data = r.json()
+                    return data if isinstance(data, list) else []
+                if r.status_code == 403:
+                    # Endpoint deprecated; try the next URL.
+                    continue
                 _log.warning("FMP calendar HTTP %s: %s", r.status_code, r.text[:200])
-                return []
-            data = r.json()
-            return data if isinstance(data, list) else []
-    except Exception as exc:  # noqa: BLE001
-        _log.warning("FMP calendar fetch failed: %s", exc)
-        return []
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("FMP calendar fetch failed for %s: %s", url, exc)
+            continue
+    return []
 
 
 async def upcoming(tickers: list[str], days: int = 7) -> list[dict[str, Any]]:

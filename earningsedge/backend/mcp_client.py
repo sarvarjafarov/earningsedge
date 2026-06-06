@@ -179,6 +179,11 @@ async def _pymongo_fallback(tool: str, args: dict[str, Any]) -> Any:
     db_name = args.get("database") or os.getenv("MONGODB_DB", "earningsedge")
     coll_name = args.get("collection")
 
+    # Circuit breaker: skip the 5s SSL-handshake wait when Atlas is known down.
+    from atlas_circuit import is_open, record_failure, record_success
+    if is_open():
+        return None
+
     from pymongo.errors import AutoReconnect, ServerSelectionTimeoutError
 
     def _run() -> Any:
@@ -219,15 +224,18 @@ async def _pymongo_fallback(tool: str, args: dict[str, Any]) -> Any:
         raise NotImplementedError(f"pymongo fallback does not implement tool {tool!r}")
 
     last_exc: Exception | None = None
-    for attempt in range(3):
+    for attempt in range(2):  # 2 attempts instead of 3 (faster fail)
         try:
-            return await asyncio.to_thread(_run)
+            result = await asyncio.to_thread(_run)
+            record_success()
+            return result
         except (AutoReconnect, ServerSelectionTimeoutError) as exc:
             last_exc = exc
+            record_failure()
             global _pymongo_client
             _pymongo_client = None
-            await asyncio.sleep(0.6 * (attempt + 1))
+            await asyncio.sleep(0.3 * (attempt + 1))
             continue
     if last_exc:
-        raise last_exc
+        return None  # don't raise — circuit will trip on repeated failures
     return None

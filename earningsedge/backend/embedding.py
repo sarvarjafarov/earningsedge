@@ -22,10 +22,28 @@ _log = logging.getLogger("earningsedge.embedding")
 EMBED_MODEL = os.getenv("GEMINI_EMBED_MODEL", "gemini-embedding-001")
 EMBED_DIM = 768  # we request truncated 768-dim output for Atlas index efficiency
 
+# Quota circuit breaker — when we see a 429 from the embedding API, stop
+# calling it for QUOTA_COOLDOWN_S seconds. Live-audio polls otherwise
+# burn the dyno's CPU on doomed embed requests.
+import time
+QUOTA_COOLDOWN_S = 60.0
+_quota_blocked_until: float = 0.0
+
+
+def _quota_blocked() -> bool:
+    return time.monotonic() < _quota_blocked_until
+
+
+def _mark_quota_hit() -> None:
+    global _quota_blocked_until
+    _quota_blocked_until = time.monotonic() + QUOTA_COOLDOWN_S
+
 
 async def embed_text(text: str) -> list[float] | None:
     """Embed a single string. Returns None on any failure."""
     if not text or not text.strip():
+        return None
+    if _quota_blocked():
         return None
     try:
         from google import genai
@@ -52,7 +70,12 @@ async def embed_text(text: str) -> list[float] | None:
                 values = getattr(embeds[0], "values", None)
                 return list(values) if values else None
             except Exception as exc:  # noqa: BLE001
-                _log.warning("embed_content failed: %s", exc)
+                msg = str(exc)
+                if "429" in msg or "RESOURCE_EXHAUSTED" in msg.upper():
+                    _mark_quota_hit()
+                    _log.warning("embed quota hit; circuit open for %ds", int(QUOTA_COOLDOWN_S))
+                else:
+                    _log.warning("embed_content failed: %s", exc)
                 return None
 
         return await asyncio.to_thread(_sync_embed)
