@@ -91,81 +91,77 @@ export default function MorningBriefingPanel({ onPickTicker }) {
     setRunning(false);
   }
 
+  // Per-ticker meta from today's briefing (so the chip can show "ADD", "HOLD", etc.)
+  const verdictByTicker = {};
+  if (briefing && Array.isArray(briefing.verdicts)) {
+    for (const v of briefing.verdicts) {
+      if (v.ticker && v.ok) verdictByTicker[v.ticker] = v;
+    }
+  }
+
   return (
     <section className="briefing">
-      <header className="briefing__head">
-        <div className="briefing__title">
-          <span className="briefing__badge">OVERNIGHT</span>
-          <h3>Morning briefing</h3>
+      {/* === Primary CTA strip — tells the user EXACTLY what to do === */}
+      <div className="briefing__cta">
+        <div className="briefing__cta-text">
+          <strong>Step 1 — pick a company.</strong>{' '}
+          <span>Click any ticker below to load the agent verdict, memory, and news.</span>
         </div>
         <button onClick={runNow} disabled={running} className="briefing__run">
-          {running ? 'Running pipeline…' : '↻ Run pipeline now'}
+          {running ? 'Running…' : '↻ Refresh overnight verdicts'}
         </button>
-      </header>
+      </div>
 
-      <div className="briefing__grid">
-        {/* Watchlist editor */}
-        <div className="briefing__card">
-          <h4>Watchlist</h4>
-          <ul className="briefing__tickers">
-            {watchlist.map((t) => (
-              <li key={t}>
-                <button className="briefing__chip" onClick={() => onPickTicker && onPickTicker(t)}>{t}</button>
-                <button className="briefing__remove" onClick={() => removeTicker(t)} title="Remove">×</button>
-              </li>
-            ))}
-          </ul>
-          <div className="briefing__add">
-            <input
-              value={adding}
-              onChange={(e) => setAdding(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') addTicker(); }}
-              placeholder="Add ticker (e.g. PLTR)"
-              maxLength={6}
-            />
-            <button onClick={addTicker} disabled={!adding.trim()}>Add</button>
-          </div>
+      {/* === Big clickable ticker cards (the primary entry point) === */}
+      <div className="briefing__tickers-grid">
+        {watchlist.map((t) => {
+          const v = verdictByTicker[t];
+          return (
+            <button
+              key={t}
+              className={`ticker-card ${v ? 'ticker-card--has-verdict' : ''}`}
+              onClick={() => onPickTicker && onPickTicker(t)}
+            >
+              <div className="ticker-card__symbol">{t}</div>
+              {v && (
+                <div className="ticker-card__verdict-mini">
+                  {(v.response || '').slice(0, 90)}…
+                </div>
+              )}
+              <div className="ticker-card__cta">
+                Open cockpit <span className="ticker-card__arrow">→</span>
+              </div>
+              <button
+                className="ticker-card__remove"
+                onClick={(e) => { e.stopPropagation(); removeTicker(t); }}
+                title="Remove from watchlist"
+              >×</button>
+            </button>
+          );
+        })}
+        {/* Add-ticker card */}
+        <div className="ticker-card ticker-card--add">
+          <input
+            value={adding}
+            onChange={(e) => setAdding(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') addTicker(); }}
+            placeholder="Add (PLTR)"
+            maxLength={6}
+          />
+          <button onClick={addTicker} disabled={!adding.trim()} className="ticker-card__add-btn">
+            + Add
+          </button>
         </div>
+      </div>
 
-        {/* Today's verdicts */}
-        <div className="briefing__card briefing__card--wide">
-          <h4>Today's verdicts</h4>
-          {!loaded && <div className="briefing__empty">Loading…</div>}
-          {loaded && !briefing && (
-            <div className="briefing__empty">
-              No briefing yet for today — the overnight pipeline runs at ~6 AM ET.
-              Click <em>Run pipeline now</em> above to trigger it immediately.
-            </div>
-          )}
-          {briefing && Array.isArray(briefing.verdicts) && briefing.verdicts.length === 0 && (
-            <div className="briefing__empty">
-              No watchlist earnings calls overnight. The pipeline ran ({briefing.date}) and found nothing new.
-            </div>
-          )}
-          {briefing && Array.isArray(briefing.verdicts) && briefing.verdicts.length > 0 && (
-            <ol className="briefing__verdicts">
-              {briefing.verdicts.map((v, i) => (
-                <li key={i} className={`briefing__verdict ${v.ok ? '' : 'briefing__verdict--err'}`}>
-                  <div className="briefing__vhead">
-                    <button className="briefing__chip" onClick={() => onPickTicker && onPickTicker(v.ticker)}>
-                      {v.ticker}
-                    </button>
-                  </div>
-                  <div className="briefing__vtext">
-                    {v.ok ? (v.response || '').slice(0, 380) : (v.error || 'pipeline error')}
-                    {v.ok && (v.response || '').length > 380 ? '…' : ''}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-
-        {/* Upcoming calendar */}
+      {/* === Secondary info row: calendar + briefing summary === */}
+      <div className="briefing__secondary">
         <div className="briefing__card">
-          <h4>Next 7 days</h4>
+          <h4>📅 Upcoming earnings calls in your watchlist</h4>
           {!calendar.length && (
-            <div className="briefing__empty">No upcoming earnings calls in your watchlist.</div>
+            <div className="briefing__empty">
+              No earnings calls in your watchlist over the next 7 days. Pick any ticker above to analyze it now.
+            </div>
           )}
           {calendar.length > 0 && (
             <ul className="briefing__cal">
@@ -179,6 +175,36 @@ export default function MorningBriefingPanel({ onPickTicker }) {
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+
+        <div className="briefing__card">
+          <h4>🌅 Overnight verdicts</h4>
+          {!loaded && <div className="briefing__empty">Loading the overnight briefing…</div>}
+          {loaded && !briefing && (
+            <div className="briefing__empty">
+              The overnight pipeline runs at <strong>7 AM ET</strong>. Click <em>Refresh overnight verdicts</em> above to run it now.
+            </div>
+          )}
+          {briefing && Array.isArray(briefing.verdicts) && briefing.verdicts.length === 0 && (
+            <div className="briefing__empty">
+              The overnight pipeline ran ({briefing.date}) but found no earnings calls in your watchlist last night.
+            </div>
+          )}
+          {briefing && Array.isArray(briefing.verdicts) && briefing.verdicts.length > 0 && (
+            <ol className="briefing__verdicts">
+              {briefing.verdicts.slice(0, 4).map((v, i) => (
+                <li key={i} className={`briefing__verdict ${v.ok ? '' : 'briefing__verdict--err'}`}>
+                  <button className="briefing__chip" onClick={() => onPickTicker && onPickTicker(v.ticker)}>
+                    {v.ticker} →
+                  </button>
+                  <div className="briefing__vtext">
+                    {v.ok ? (v.response || '').slice(0, 180) : (v.error || 'pipeline error')}
+                    {v.ok && (v.response || '').length > 180 ? '…' : ''}
+                  </div>
+                </li>
+              ))}
+            </ol>
           )}
         </div>
       </div>

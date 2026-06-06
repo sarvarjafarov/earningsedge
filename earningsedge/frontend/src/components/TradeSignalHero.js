@@ -23,7 +23,11 @@ function digestItems(signal) {
   if (Array.isArray(lines) && lines.length) {
     return lines
       .map((x) => truncateDigestLine(x))
-      .filter(Boolean);
+      .filter(Boolean)
+      // Filter out "Revenue missed by -100%" and similar broken-data
+      // signals (those values indicate the metric returned no data).
+      .filter((l) => !/missed by\s*-?100(\.0)?%/i.test(l))
+      .filter((l) => !/by\s*-?nan%/i.test(l));
   }
   const raw = (s.synthesis_digest && String(s.synthesis_digest).trim()) || '';
   if (!raw) return [];
@@ -31,6 +35,8 @@ function digestItems(signal) {
     .split('\n')
     .map((x) => truncateDigestLine(x.trim()))
     .filter(Boolean)
+    .filter((l) => !/missed by\s*-?100(\.0)?%/i.test(l))
+    .filter((l) => !/by\s*-?nan%/i.test(l))
     .slice(0, 8);
 }
 
@@ -48,7 +54,10 @@ export default function TradeSignalHero({
   const confLabel = confidence || 'PENDING';
   const hasSignal = signal != null;
   const digestList = digestItems(signal);
-  const price = Number.isFinite(Number(livePrice)) ? Number(livePrice) : null;
+  // Treat 0 / negative / non-finite as "no live price yet" — better than
+  // showing $0.00 which looks like the system is broken.
+  const priceRaw = Number(livePrice);
+  const price = Number.isFinite(priceRaw) && priceRaw > 0 ? priceRaw : null;
 
   const tickerUpper = useMemo(() => (ticker ? String(ticker).toUpperCase() : ''), [ticker]);
   /* Paper preview: 1 share at the last polled quote (Alpha Vantage / price_tick). User confirms in modal. */
@@ -92,43 +101,58 @@ export default function TradeSignalHero({
         </div>
         <div className="trade-hero-action-row">
           <div className="trade-hero-action">{action}</div>
-          {price != null && (
+          {price != null ? (
             <div className="trade-hero-live-price" title="Alpha Vantage GLOBAL_QUOTE, polled every 60s">
               <span className="trade-hero-live-dot" />
               ${price.toFixed(2)}
               <span className="trade-hero-live-label">●60s</span>
             </div>
+          ) : (
+            <div className="trade-hero-live-price trade-hero-live-price--pending" title="Live quote will arrive once the price stream connects">
+              <span className="trade-hero-live-dot" />
+              waiting for quote…
+            </div>
           )}
         </div>
 
-        {action !== 'WAIT' && (
-          <div className="trade-hero-order-controls">
-            <button
-              type="button"
-              className="btn btn-order btn-order-buy"
-              onClick={() => openOrder('BUY', 'BUY')}
-              disabled={!canOrder}
-              title={
-                canOrder
-                  ? 'Submit a PAPER order via Alpaca (confirmation required; default 1 share at last quote)'
-                  : 'Need a ticker and a live quote — load company coverage and wait for the price tick'
-              }
-            >
-              BUY {tickerUpper}
-            </button>
-            <button
-              type="button"
-              className="btn btn-order btn-order-short"
-              onClick={() => openOrder('SELL', 'SHORT')}
-              disabled={!canOrder}
-              title={
-                canOrder
-                  ? 'Paper sell / short: submits SELL to Alpaca (margin rules apply in your paper account)'
-                  : 'Need a ticker and a live quote — load company coverage and wait for the price tick'
-              }
-            >
-              SHORT {tickerUpper}
-            </button>
+        {/* Paper-trade buttons + always-visible explanation of disabled state */}
+        <div className="trade-hero-order-controls">
+          <button
+            type="button"
+            className="btn btn-order btn-order-buy"
+            onClick={() => openOrder('BUY', 'BUY')}
+            disabled={!canOrder}
+            title={
+              canOrder
+                ? 'Submit a PAPER order via Alpaca (confirmation required; default 1 share at last quote)'
+                : action === 'WAIT'
+                  ? 'Committee verdict is HOLD/WAIT — no trade to execute'
+                  : 'Waiting for a live price tick before submitting an order'
+            }
+          >
+            BUY {tickerUpper || ''}
+          </button>
+          <button
+            type="button"
+            className="btn btn-order btn-order-short"
+            onClick={() => openOrder('SELL', 'SHORT')}
+            disabled={!canOrder}
+            title={
+              canOrder
+                ? 'Paper short via Alpaca (margin rules apply in your paper account)'
+                : action === 'WAIT'
+                  ? 'Committee verdict is HOLD/WAIT — no trade to execute'
+                  : 'Waiting for a live price tick before submitting an order'
+            }
+          >
+            SHORT {tickerUpper || ''}
+          </button>
+        </div>
+        {!canOrder && (
+          <div className="trade-hero-disabled-hint">
+            {action === 'WAIT'
+              ? '⏸ Verdict is HOLD — paper-trade buttons activate when the committee scores ≥ 70 (BUY) or ≤ 30 (SHORT).'
+              : '⏳ Paper-trade buttons activate when the live price tick arrives.'}
           </div>
         )}
 
@@ -163,9 +187,9 @@ export default function TradeSignalHero({
       </div>
       <div className="trade-hero-right">
         <div className="trade-hero-right-label">
-          Thesis
+          <span>Thesis</span>{' '}
           <span className="trade-hero-scale-hint" title="Score scale: 0–30 bearish · 30–70 mixed · 70–100 bullish">
-            score 0–100
+            (score 0–100)
           </span>
         </div>
         {hasSignal && s.thesis ? (

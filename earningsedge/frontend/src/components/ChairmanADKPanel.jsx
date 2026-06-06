@@ -153,40 +153,41 @@ export default function ChairmanADKPanel({ ticker, autoRun = true }) {
     <section className={`adk-panel ${running ? 'adk-panel--running' : ''}`}>
       <header>
         <div className="adk-panel__title">
-          <span className="adk-panel__badge">ADK</span>
+          <span className="adk-panel__badge">AI AGENT</span>
           <h3>
-            Analyst Chairman{' '}
-            <span className="adk-panel__sub">
-              via Google Cloud Agent Builder · Gemini 3.5 Flash
-            </span>
+            Analyst Chairman
+            {running && (
+              <span className="adk-panel__status">
+                <span className="adk-panel__spinner" /> Thinking…
+              </span>
+            )}
           </h3>
-          {running && (
-            <span className="adk-panel__status">
-              <span className="adk-panel__spinner" /> running on Gemini 3 …
-            </span>
-          )}
         </div>
         <p className="adk-panel__lede">
-          A root <code>LlmAgent</code> with <strong>13 tools</strong> and{' '}
-          <strong>5 sub-agents</strong>{' '}
-          (<em>Bull</em>, <em>Bear</em>, <em>Quant</em>, <em>News</em>,{' '}
-          <em>Macro</em>). Memory backed by MongoDB Atlas Vector Search;
-          persistence by the partner MongoDB MCP server.
+          <strong>What this is:</strong> An AI senior analyst built on Google Cloud Agent
+          Builder. It runs five named investor personas in parallel (Cathie Wood,
+          Michael Burry, Druckenmiller, Cramer, Marks), consults Atlas Vector
+          Search for prior verdicts, and synthesizes them into ONE call.
         </p>
       </header>
 
-      <textarea
-        rows={3}
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Ask the chairman …"
-      />
-
-      <div className="adk-panel__actions">
-        <button onClick={() => runChairman()} disabled={running}>
-          {running ? 'Running …' : ticker ? `Run for ${ticker}` : 'Run'}
-        </button>
-        {ticker && <span className="adk-panel__ctx">ticker context: {ticker}</span>}
+      {/* === Step 1: The question === */}
+      <div className="adk-step">
+        <div className="adk-step__label">
+          <span className="adk-step__num">1</span> Your question
+        </div>
+        <textarea
+          rows={2}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Ask the chairman …"
+        />
+        <div className="adk-panel__actions">
+          <button onClick={() => runChairman()} disabled={running}>
+            {running ? 'Running…' : ticker ? `Run analysis for ${ticker}` : 'Run analysis'}
+          </button>
+          {ticker && <span className="adk-panel__ctx">ticker: <strong>{ticker}</strong></span>}
+        </div>
       </div>
 
       {error && (
@@ -196,7 +197,40 @@ export default function ChairmanADKPanel({ ticker, autoRun = true }) {
         </div>
       )}
 
+      {/* === Step 2: Agent reasoning (tool calls trace) === */}
+      {(running || (result && Array.isArray(result.tool_calls) && result.tool_calls.length > 0)) && (
+        <div className="adk-step">
+          <div className="adk-step__label">
+            <span className="adk-step__num">2</span> Agent reasoning
+            <span className="adk-step__hint">— what tools the agent is calling</span>
+          </div>
+          {result && Array.isArray(result.tool_calls) && result.tool_calls.length > 0 && (
+            <ul className="adk-trace">
+              {result.tool_calls.map((tc, i) => (
+                <li key={i} className="adk-trace__item">
+                  <span className="adk-trace__icon">⚙</span>
+                  <code>{tc.name}</code>
+                  {tc.args && Object.keys(tc.args).length > 0 && (
+                    <span className="adk-trace__args">
+                      ({Object.entries(tc.args).map(([k, v]) => `${k}=${JSON.stringify(v).slice(0, 40)}`).join(', ')})
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {running && (!result || !result.tool_calls || result.tool_calls.length === 0) && (
+            <div className="adk-trace__empty">Agent is composing the first tool call…</div>
+          )}
+        </div>
+      )}
+
+      {/* === Step 3: Verdict === */}
       {result && (
+        <div className="adk-step">
+          <div className="adk-step__label">
+            <span className="adk-step__num">3</span> Verdict
+          </div>
         <div className="adk-panel__result">
           {/* Extract any structured score_block JSON from the response and
               render it as a verdict card. Falls back to plain prose if no
@@ -257,19 +291,7 @@ export default function ChairmanADKPanel({ ticker, autoRun = true }) {
             )}
           </div>
           <div className="adk-panel__response">{stripJsonBlocks(result.response || '')}</div>
-          {Array.isArray(result.tool_calls) && result.tool_calls.length > 0 && (
-            <details className="adk-panel__trace">
-              <summary>Tool-call trace ({result.tool_calls.length})</summary>
-              <ol>
-                {result.tool_calls.map((tc, i) => (
-                  <li key={i}>
-                    <code>{tc.name}</code>(
-                    <code>{JSON.stringify(tc.args || {})}</code>)
-                  </li>
-                ))}
-              </ol>
-            </details>
-          )}
+        </div>
         </div>
       )}
     </section>
