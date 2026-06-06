@@ -616,6 +616,46 @@ async def transcript_highlights(body: dict[str, Any]) -> dict[str, Any]:
     return {"ok": True, "lines": results}
 
 
+@app.get("/api/price")
+async def get_price(ticker: str) -> dict[str, Any]:
+    """Return the current price of a ticker via Finnhub /quote (direct).
+
+    Direct Finnhub call (no yfinance dependency). The frontend polls
+    this every ~30s to seed livePrice so the BUY/SHORT paper-trade
+    buttons activate without depending on the legacy WebSocket
+    price_tick (which requires yfinance and isn't running on Heroku).
+    """
+    sym = (ticker or "").strip().upper()
+    if not sym:
+        return {"ok": False, "error": "ticker required"}
+    api_key = os.getenv("FINNHUB_API_KEY", "").strip()
+    if not api_key:
+        return {"ok": False, "ticker": sym, "price": 0, "error": "FINNHUB_API_KEY not set"}
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            r = await client.get(
+                "https://finnhub.io/api/v1/quote",
+                params={"symbol": sym, "token": api_key},
+            )
+            if r.status_code != 200:
+                return {"ok": False, "ticker": sym, "price": 0, "error": f"HTTP {r.status_code}"}
+            data = r.json()
+            # Finnhub /quote returns: c = current, pc = prev close, h/l = day high/low
+            current = float(data.get("c") or 0)
+            return {
+                "ok": True,
+                "ticker": sym,
+                "price": current,
+                "previous_close": float(data.get("pc") or 0),
+                "day_high": float(data.get("h") or 0),
+                "day_low": float(data.get("l") or 0),
+                "source": "finnhub",
+            }
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "ticker": sym, "price": 0, "error": str(exc)}
+
+
 @app.post("/api/personas/pulse")
 async def personas_pulse(body: dict[str, Any]) -> dict[str, Any]:
     """Live persona pulse — five fast Gemini calls in parallel.

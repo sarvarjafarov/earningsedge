@@ -60,13 +60,18 @@ export default function TradeSignalHero({
   const price = Number.isFinite(priceRaw) && priceRaw > 0 ? priceRaw : null;
 
   const tickerUpper = useMemo(() => (ticker ? String(ticker).toUpperCase() : ''), [ticker]);
-  /* Paper preview: 1 share at the last polled quote (Alpha Vantage / price_tick). User confirms in modal. */
+  /* Paper preview: 1 share at the last polled quote. User confirms in modal.
+   * If price isn't yet known, we still enable the buttons — the order modal
+   * will submit at market and Alpaca returns the fill price. */
   const entryPrice = price;
   const stopLoss = null;
   const takeProfit = null;
-  const orderQty = action !== 'WAIT' && tickerUpper && price != null && price > 0 ? 1 : 0;
+  const orderQty = tickerUpper ? 1 : 0;
 
-  const canOrder = action !== 'WAIT' && !!tickerUpper && orderQty > 0;
+  // Paper-trade buttons activate on ANY verdict (including HOLD) so the
+  // user can override the committee. The previous gating on action !== 'WAIT'
+  // confused users — "why is the system letting me see HOLD but not buy?"
+  const canOrder = !!tickerUpper && orderQty > 0;
 
   const [orderOpen, setOrderOpen] = useState(false);
   const [orderSide, setOrderSide] = useState('BUY');
@@ -115,20 +120,15 @@ export default function TradeSignalHero({
           )}
         </div>
 
-        {/* Paper-trade buttons + always-visible explanation of disabled state */}
+        {/* Paper-trade buttons — always active when a ticker is loaded.
+            The user may override the committee verdict at any time. */}
         <div className="trade-hero-order-controls">
           <button
             type="button"
             className="btn btn-order btn-order-buy"
             onClick={() => openOrder('BUY', 'BUY')}
             disabled={!canOrder}
-            title={
-              canOrder
-                ? 'Submit a PAPER order via Alpaca (confirmation required; default 1 share at last quote)'
-                : action === 'WAIT'
-                  ? 'Committee verdict is HOLD/WAIT — no trade to execute'
-                  : 'Waiting for a live price tick before submitting an order'
-            }
+            title="Submit a PAPER order via Alpaca (confirmation required; default 1 share at last quote)"
           >
             BUY {tickerUpper || ''}
           </button>
@@ -137,22 +137,15 @@ export default function TradeSignalHero({
             className="btn btn-order btn-order-short"
             onClick={() => openOrder('SELL', 'SHORT')}
             disabled={!canOrder}
-            title={
-              canOrder
-                ? 'Paper short via Alpaca (margin rules apply in your paper account)'
-                : action === 'WAIT'
-                  ? 'Committee verdict is HOLD/WAIT — no trade to execute'
-                  : 'Waiting for a live price tick before submitting an order'
-            }
+            title="Paper short via Alpaca (margin rules apply in your paper account)"
           >
             SHORT {tickerUpper || ''}
           </button>
         </div>
-        {!canOrder && (
+        {action === 'HOLD' && canOrder && (
           <div className="trade-hero-disabled-hint">
-            {action === 'WAIT'
-              ? '⏸ Verdict is HOLD — paper-trade buttons activate when the committee scores ≥ 70 (BUY) or ≤ 30 (SHORT).'
-              : '⏳ Paper-trade buttons activate when the live price tick arrives.'}
+            ⚠ Committee verdict is <strong>HOLD</strong> (score {Math.round(Number(s.score) || 51)}). You can still
+            execute a paper trade if you disagree with the committee — these are paper dollars only.
           </div>
         )}
 

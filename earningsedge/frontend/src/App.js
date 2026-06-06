@@ -185,6 +185,31 @@ function App({ onBackToLanding }) {
     identifiedRef.current = identified;
   }, [identified]);
 
+  /** Poll the price endpoint every 30s while a ticker is loaded.
+   *  The legacy PriceStream uses yfinance which is missing on the
+   *  Heroku slim build, so we use the Finnhub-backed /api/price
+   *  endpoint as the source of truth for livePrice. Without this, the
+   *  Committee tab's BUY/SHORT buttons stay disabled because the
+   *  legacy `price > 0` check never satisfies. */
+  useEffect(() => {
+    const tk = identified?.ticker;
+    if (!tk) return;
+    let cancelled = false;
+    async function fetchPrice() {
+      try {
+        const r = await fetch(`${API_BASE}/api/price?ticker=${encodeURIComponent(tk)}`);
+        if (cancelled || !r.ok) return;
+        const body = await r.json();
+        const p = Number(body.price);
+        if (Number.isFinite(p) && p > 0) setLivePrice(p);
+      } catch (_) { /* ignore */ }
+    }
+    fetchPrice();
+    const interval = setInterval(fetchPrice, 30000);
+    return () => { cancelled = true; clearInterval(interval); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identified?.ticker]);
+
   /** Probe Gemini Live (bidiGenerateContent) once on mount. The result
    *  drives a non-intrusive disabled state on the Listen-live button so
    *  the user gets a clear "live audio unavailable" message instead of
