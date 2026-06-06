@@ -51,7 +51,15 @@ function writeJsonLS(key, value) {
 //   'ready'     — company loaded; awaiting "Earnings call" (tab capture).
 //   'listening' — tab audio streaming the actual call.
 
+// Bundle stamp — bumped whenever a non-visible fix needs to force a new
+// content hash so browsers refetch instead of serving stale cached JS.
+const BUILD_TAG = '2026-06-06T17:00-listen-live-instant-tab-jump-v3';
+
 function App({ onBackToLanding }) {
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log('[EarningsEdge] build', BUILD_TAG);
+  }, []);
   const [transcript, setTranscript] = useState([]);
   /** In-progress live caption from `transcript_partial` events. Renders as an
    *  italic "currently being said" line below the finalized transcript.
@@ -686,11 +694,14 @@ function App({ onBackToLanding }) {
     }
     if (mode === 'listening' || mode === 'briefing') return;
     if (sessionStatus === 'connecting') return;
-    // Jump to the Live audio tab immediately so the preflight modal,
-    // share-tab dialog, and incoming transcript all surface in the same
-    // place. Previously the view only flipped to 'live' AFTER the WS
-    // handshake succeeded, which left users staring at the Verdict tab
-    // for 5–10 seconds and made them think the click did nothing.
+    // CRITICAL UX: jump to the Live audio tab on the instant the user
+    // clicks — before the preflight modal, before the tab-share dialog,
+    // before the WS handshake. Otherwise the user spends 5-10 seconds
+    // staring at the Verdict tab while the End-call button and live
+    // control bar quietly initialise on a hidden pane.
+    // (cb=2026-06-06-listen-live-tab-jump-v3 — also serves as a cache
+    // buster to force a new bundle hash for browsers holding the old
+    // cached main.<hash>.js with the pre-fix behaviour.)
     setCompanyView('live');
     if (skipPreflight) {
       startEarningsCall();

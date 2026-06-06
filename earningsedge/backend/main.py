@@ -1072,7 +1072,7 @@ class SPAStaticFiles(StaticFiles):
 
     async def get_response(self, path: str, scope: Scope):
         try:
-            return await super().get_response(path, scope)
+            response = await super().get_response(path, scope)
         except StarletteHTTPException as exc:
             if exc.status_code != 404:
                 raise
@@ -1083,8 +1083,22 @@ class SPAStaticFiles(StaticFiles):
                 raise
             index = Path(self.directory) / "index.html"
             if index.is_file():
-                return FileResponse(index)
-            raise
+                response = FileResponse(index)
+            else:
+                raise
+        # Never cache index.html: a stale shell holding an old
+        # bundle reference defeats deploys. The hash-named bundles
+        # under /static/ can still be cached forever — their URLs
+        # change every build.
+        normalized = path.lstrip("/")
+        if normalized in {"", "index.html"} or (
+            not normalized.startswith(self._ASSET_PREFIXES)
+            and normalized not in self._ASSET_FILES
+        ):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
 
 
 if _static.is_dir():
