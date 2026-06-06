@@ -79,62 +79,69 @@ export default function PersonaPulsePanel({ ticker, transcript }) {
     return null;
   }
 
+  const [expanded, setExpanded] = useState(null);
+
   return (
     <section className="persona-pulse">
       <header className="persona-pulse__head">
         <span className="persona-pulse__badge">LIVE</span>
-        <h3>Persona pulse — five investors react</h3>
-        {updating && (
-          <span className="persona-pulse__status">
-            <span className="persona-pulse__spinner" /> updating…
-          </span>
-        )}
+        <h3>Five investors react</h3>
+        {updating && <span className="persona-pulse__status"><span className="persona-pulse__spinner" /></span>}
         {!updating && lastUpdated && (
           <span className="persona-pulse__status persona-pulse__status--idle">
             {ago(lastUpdated)} ago · {elapsed != null ? `${(elapsed / 1000).toFixed(1)}s` : ''}
-            {' '}
-            <button className="persona-pulse__refresh" onClick={runPulse} title="Run pulse now">
-              ↻
-            </button>
+            <button className="persona-pulse__refresh" onClick={runPulse} title="Run pulse now">↻</button>
           </span>
         )}
       </header>
 
       {personas.length === 0 && (
         <div className="persona-pulse__empty">
-          Waiting for the first transcript line — the five lenses will fire as soon as the audio buffer has content.
+          Waiting for the first transcript line — the five lenses react as soon as the buffer has content.
         </div>
       )}
 
       {personas.length > 0 && (
-        <ul className="persona-pulse__grid">
-          {personas.map((p) => {
+        <>
+          <ul className="persona-pulse__chips">
+            {personas.map((p) => {
+              const direction = sentimentBucket(p.sentiment);
+              const isOpen = expanded === p.key;
+              return (
+                <li key={p.key}>
+                  <button
+                    type="button"
+                    className={`persona-pulse__chip-btn persona-pulse__chip-btn--${direction} ${isOpen ? 'is-open' : ''}`}
+                    onClick={() => setExpanded(isOpen ? null : p.key)}
+                  >
+                    <span className="persona-pulse__chip-name">{p.display}</span>
+                    <span className={`persona-pulse__chip-score persona-pulse__chip-score--${direction}`}>
+                      {p.sentiment >= 0 ? '+' : ''}{p.sentiment.toFixed(2)}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {expanded && (() => {
+            const p = personas.find((x) => x.key === expanded);
+            if (!p) return null;
             const direction = sentimentBucket(p.sentiment);
             return (
-              <li
-                key={p.key}
-                className={`persona-pulse__card persona-pulse__card--${direction}`}
-              >
-                <div className="persona-pulse__top">
-                  <span className="persona-pulse__name">{p.display}</span>
-                  <span className={`persona-pulse__chip persona-pulse__chip--${direction}`}>
-                    {labelFromBucket(direction)}
-                  </span>
+              <div className={`persona-pulse__detail persona-pulse__detail--${direction}`}>
+                <div className="persona-pulse__detail-top">
+                  <strong>{p.display}</strong>
+                  <span className="persona-pulse__detail-lens">{p.lens}</span>
+                  <span className="persona-pulse__detail-conf">{p.confidence}</span>
                 </div>
-                <div className="persona-pulse__meta">
-                  <span className="persona-pulse__lens">{p.lens}</span>
-                  <span className="persona-pulse__conf">{p.confidence}</span>
-                </div>
-                <div className="persona-pulse__line">{p.one_line}</div>
+                <p className="persona-pulse__detail-line">"{p.one_line}"</p>
                 {p.flag && (
-                  <div className={`persona-pulse__flag persona-pulse__flag--${p.flag}`}>
-                    ⚑ {flagLabel(p.flag)}
-                  </div>
+                  <div className="persona-pulse__detail-flag">⚑ {flagLabel(p.flag)}</div>
                 )}
-              </li>
+              </div>
             );
-          })}
-        </ul>
+          })()}
+        </>
       )}
     </section>
   );

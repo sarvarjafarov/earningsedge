@@ -1392,17 +1392,9 @@ function App({ onBackToLanding }) {
             </div>
           </div>
         </nav>
-        {appTab === 'company' && hasLoaded ? (
-          <div data-tour="trade-hero">
-            <TradeSignalHero
-              signal={tradeSignal}
-              fresh={signalFresh}
-              livePrice={livePrice}
-              ticker={identified.ticker}
-              onOrderSuccess={() => setTradingRefreshKey((k) => k + 1)}
-            />
-          </div>
-        ) : null}
+        {/* Legacy TradeSignalHero hidden — the ADK Chairman card below
+            is the canonical verdict so the user isn't choosing between
+            two competing labels (yellow HOLD vs green STRONG_BUY). */}
       </div>
 
       {appTab === 'trading' ? (
@@ -1737,39 +1729,20 @@ function App({ onBackToLanding }) {
           </div>
         )}
 
-        <div className="company-subnav" role="tablist" aria-label="Dashboard view" data-tour="subnav">
-          {[
-            { id: 'overview', label: 'Overview', hint: 'Transcript, metrics, sentiment' },
-            { id: 'peers', label: 'Peers & News', hint: 'Competitors, analyst, news' },
-            { id: 'macro', label: 'Macro & Technical', hint: 'Rates, curves, indicators' },
-            { id: 'committee', label: 'Committee', hint: 'Why the trade signal' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={companyView === tab.id}
-              className={`company-subnav-pill ${companyView === tab.id ? 'is-active' : ''}`}
-              onClick={() => setCompanyView(tab.id)}
-              title={tab.hint}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {/* === FOCUSED COCKPIT (v4) =======================================
+            The verdict view is the screen. Persona Pulse + Pattern Matches
+            sit immediately above the ADK Chairman card. Memory + News
+            live as compact side panels. Everything else (legacy committee,
+            peers, macro, technicals, full transcript, metrics) is hidden
+            behind a single "Show full coverage details" expander. */}
 
-        {/* Live persona pulse — five named investors reacting to the
-            live transcript in real time. Auto-fires while a transcript
-            buffer exists. Hidden when no transcript yet. */}
+        {/* Five named investors react inline (auto-fires when transcript exists). */}
         <PersonaPulsePanel ticker={identified?.ticker} transcript={transcript} />
 
-        {/* Pattern matches — vector-search hits as transcript lines arrive.
-            Surfaces the memory engine inline during the live call. */}
+        {/* Vector-search hits — only renders when a match is found. */}
         <PatternMatchesPanel ticker={identified?.ticker} transcript={transcript} />
 
-        {/* 3-panel layout: Verdict (ADK Chairman) · Memory (Pattern Alerts) · Inputs (News).
-            Replaces the prior stack of 5+ panels. Visible on every cockpit tab so
-            judges see the agent + memory + news the moment a ticker is loaded. */}
+        {/* Primary verdict + side panels. */}
         <div className="primary-grid">
           <div className="primary-grid__main">
             <ChairmanADKPanel ticker={identified?.ticker} />
@@ -1780,11 +1753,8 @@ function App({ onBackToLanding }) {
           </aside>
         </div>
 
-        {/* Legacy panels (committee/peers/macro/transcript/metrics) live below
-            and are reached via the existing subnav tabs. Hidden when the user
-            chooses to focus on the agent view above. */}
-
-        {companyView === 'overview' && (
+        {/* Live transcript only when audio is actively streaming. */}
+        {(mode === 'listening' || mode === 'paused') && (
           <div className="dashboard-grid dashboard-grid--overview">
             <div className="col col-left">
               <TranscriptPanel
@@ -1795,12 +1765,50 @@ function App({ onBackToLanding }) {
                 highlightLexicon={highlightLexicon}
               />
             </div>
-
             <div className="col col-center">
+              {(sentiment && (sentiment.material_count || 0) > 0) && (
+                <SentimentGauge sentiment={sentiment} analystOpinion={analystOpinion} />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Full coverage details — collapsed by default. The legacy
+            committee / peers / macro / technicals view is here as a
+            disclosure so a curious user can dig in without it
+            dominating the default view. */}
+        <details className="full-coverage">
+          <summary>
+            <span className="full-coverage__chev">▸</span>
+            Show full coverage details
+            <span className="full-coverage__hint">— committee · peers · analyst · news · macro · technicals</span>
+          </summary>
+          <div className="full-coverage__body">
+            <div className="full-coverage__tabs">
+              {[
+                { id: 'overview', label: 'Overview' },
+                { id: 'peers', label: 'Peers & analyst' },
+                { id: 'macro', label: 'Macro & technicals' },
+                { id: 'committee', label: 'Committee' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`full-coverage__tab ${companyView === tab.id ? 'is-active' : ''}`}
+                  onClick={() => setCompanyView(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+        {companyView === 'overview' && (
+          <div className="dashboard-grid dashboard-grid--overview">
+            <div className="col col-left">
               <MetricsPanel metrics={metrics} />
-              {(mode === 'listening' ||
-                mode === 'paused' ||
-                (sentiment && (sentiment.material_count || 0) > 0)) && (
+            </div>
+            <div className="col col-center">
+              {(sentiment && (sentiment.material_count || 0) > 0) && (
                 <SentimentGauge sentiment={sentiment} analystOpinion={analystOpinion} />
               )}
             </div>
@@ -1835,6 +1843,8 @@ function App({ onBackToLanding }) {
             <CommitteeView tradeSignal={tradeSignal} variant="full" />
           </div>
         )}
+          </div>
+        </details>
         </>
       ) : null}
 
