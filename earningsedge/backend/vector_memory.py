@@ -157,7 +157,10 @@ async def find_similar_verdicts(
             ]
             return list(_db()[COLLECTION].aggregate(pipeline))
         except Exception as exc:  # noqa: BLE001
-            _log.warning("atlas vector search failed: %s", exc)
+            # Truncate the gigantic Atlas SSL error to one line to keep
+            # the dyno's stdout buffer from filling up.
+            msg = str(exc).split("\n", 1)[0][:120]
+            _log.warning("atlas vector search failed: %s", msg)
             return []
 
     # Circuit breaker — if Atlas is known down, skip the 5s wait.

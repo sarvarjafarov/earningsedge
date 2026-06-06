@@ -58,7 +58,9 @@ def get_watchlist(user_id: str | None = None) -> list[str]:
             return [t.upper() for t in doc["tickers"] if isinstance(t, str)]
     except Exception as exc:  # noqa: BLE001
         record_failure()
-        _log.warning("watchlist read failed for %s: %s", uid, exc)
+        # Trim the gigantic Atlas SSL error to one short line.
+        msg = str(exc).split("\n", 1)[0][:120]
+        _log.warning("watchlist read failed for %s: %s", uid, msg)
     return DEFAULT_WATCHLIST[:]
 
 

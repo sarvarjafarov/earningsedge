@@ -17,10 +17,14 @@ from __future__ import annotations
 import threading
 import time
 
-# Trip after this many consecutive failures.
-TRIP_THRESHOLD = 2
-# How long to stay open before retrying.
-COOLDOWN_S = 60.0
+# Trip after ONE failure. On Heroku the Atlas SSL is consistently broken
+# and waiting for two failures means every caller pays the 5s SSL timeout
+# wait before the circuit opens — N callers × 5s = serious dyno hit.
+TRIP_THRESHOLD = 1
+# How long to stay open before retrying. Atlas SSL failures from Heroku
+# don't resolve themselves on a minute timescale, so we extend the
+# cooldown to 10 minutes (was 60s) to massively reduce retry frequency.
+COOLDOWN_S = 600.0
 
 
 class _CircuitState:

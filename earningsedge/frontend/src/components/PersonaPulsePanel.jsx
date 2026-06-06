@@ -60,13 +60,15 @@ export default function PersonaPulsePanel({ ticker, transcript }) {
     }
   }
 
-  // Auto-poll when the transcript buffer grows. Cool-down 25 s so we
-  // don't melt Gemini quota.
+  // Auto-poll when the transcript buffer grows. Cool-down 60 s — was 25 s
+  // but with 5 personas × Gemini calls per pulse this was contributing to
+  // memory pressure on the Heroku Basic dyno during live audio.
   useEffect(() => {
     if (!ticker || !buffer.trim()) return;
     const now = Date.now();
-    if (now - lastPollAtRef.current < 25000) return;
-    if (buffer.length === lastBufferLenRef.current) return;
+    if (now - lastPollAtRef.current < 60000) return;
+    // Require a meaningful change in buffer size before re-polling.
+    if (buffer.length - lastBufferLenRef.current < 200) return;
     lastBufferLenRef.current = buffer.length;
     lastPollAtRef.current = now;
     runPulse();
