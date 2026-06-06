@@ -9069,3 +9069,48 @@ that class so they don't affect normal browser rendering.
   color: var(--accent-yellow);
 }
 
+/* --- Pattern Matches panel (live transcript ⇄ Vector Search) ------------- */
+.pattern-matches {
+  background: linear-gradient(180deg, rgba(255, 195, 0, 0.06), rgba(10, 22, 40, 0.85));
+  border: 1px solid rgba(255, 195, 0, 0.4);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 14px 0;
+}
+.pattern-matches__head {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+}
+.pattern-matches__head h3 { color: var(--text-primary); font-size: 14px; font-weight: 600; margin: 0; }
+.pattern-matches__badge {
+  background: var(--accent-yellow); color: #061321;
+  font-family: var(--font-mono); font-weight: 700; font-size: 10px;
+  padding: 3px 8px; border-radius: 6px; letter-spacing: 0.04em;
+}
+.pattern-matches__list { list-style: none; padding: 0; margin: 0; }
+.pattern-matches__item {
+  padding: 10px; margin-bottom: 8px;
+  background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.pattern-matches__quote {
+  color: var(--text-primary); font-size: 12px; line-height: 1.45;
+  font-style: italic; margin-bottom: 6px;
+}
+.pattern-matches__line {
+  color: var(--text-secondary); font-size: 11px;
+  font-family: var(--font-mono); margin-bottom: 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.pattern-matches__action {
+  padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.pattern-matches__action--add, .pattern-matches__action--buy { background: rgba(0, 255, 136, 0.18); color: var(--accent-green); }
+.pattern-matches__action--hold { background: rgba(255, 195, 0, 0.18); color: var(--accent-yellow); }
+.pattern-matches__action--trim, .pattern-matches__action--avoid, .pattern-matches__action--sell { background: rgba(255, 59, 92, 0.18); color: var(--accent-red); }
+.pattern-matches__sim { color: var(--text-dim); }
+.pattern-matches__snippet {
+  color: var(--text-secondary); font-size: 11px; line-height: 1.45;
+  border-left: 2px solid rgba(255, 195, 0, 0.4); padding-left: 8px;
+}
+

@@ -556,6 +556,52 @@ async def adk_run(body: ADKRunRequest):
     )
 
 
+@app.post("/api/transcript/highlights")
+async def transcript_highlights(body: dict[str, Any]) -> dict[str, Any]:
+    """Vector-search a batch of transcript lines against the past-verdicts
+    corpus. Returns per-line similarity scores so the UI can highlight
+    lines that rhyme with prior committee decisions.
+
+    Designed to be called on every batch of new transcript lines arriving
+    over /ws/transcripts. Each line is embedded once; the embedded vector
+    is cached in-memory for the session.
+    """
+    from vector_memory import find_similar_verdicts
+    lines = body.get("lines") or []
+    ticker = (body.get("ticker") or "").strip().upper() or None
+    if not isinstance(lines, list) or not lines:
+        return {"ok": True, "lines": []}
+    # Cap to keep the per-call latency bounded.
+    lines = lines[:30]
+    results = []
+    for line in lines:
+        text = (line if isinstance(line, str) else line.get("text", "")).strip()
+        if not text or len(text) < 20:
+            results.append({"text": text, "match": None})
+            continue
+        try:
+            matches = await asyncio.wait_for(
+                find_similar_verdicts(text, ticker=ticker, k=1),
+                timeout=8.0,
+            )
+        except Exception:
+            matches = []
+        if matches and matches[0].get("similarity", 0) >= 0.75:
+            m = matches[0]
+            results.append({
+                "text": text,
+                "match": {
+                    "ticker": m.get("ticker"),
+                    "action": m.get("action"),
+                    "similarity": m.get("similarity"),
+                    "snippet": (m.get("text") or "")[:240],
+                },
+            })
+        else:
+            results.append({"text": text, "match": None})
+    return {"ok": True, "lines": results}
+
+
 @app.post("/api/personas/pulse")
 async def personas_pulse(body: dict[str, Any]) -> dict[str, Any]:
     """Live persona pulse — five fast Gemini calls in parallel.
