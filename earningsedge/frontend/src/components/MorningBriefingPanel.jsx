@@ -24,6 +24,10 @@ export default function MorningBriefingPanel({ onPickTicker }) {
   const [adding, setAdding] = useState('');
   const [running, setRunning] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // Track which ticker is being loaded so we can show a clear loading
+  // state on the chip the user just clicked (instead of dead silence
+  // while the 10-15s coverage call fires).
+  const [pickingTicker, setPickingTicker] = useState(null);
 
   async function loadAll() {
     setLoaded(false);
@@ -116,26 +120,41 @@ export default function MorningBriefingPanel({ onPickTicker }) {
       <div className="briefing__tickers-grid">
         {watchlist.map((t) => {
           const v = verdictByTicker[t];
+          const isPicking = pickingTicker === t;
           return (
             <button
               key={t}
-              className={`ticker-card ${v ? 'ticker-card--has-verdict' : ''}`}
-              onClick={() => onPickTicker && onPickTicker(t)}
+              className={`ticker-card ${v ? 'ticker-card--has-verdict' : ''} ${isPicking ? 'ticker-card--loading' : ''}`}
+              onClick={() => {
+                if (pickingTicker) return;  // already loading something
+                setPickingTicker(t);
+                onPickTicker && onPickTicker(t);
+                // Reset after the coverage call should be done so user can re-click
+                setTimeout(() => setPickingTicker(null), 18000);
+              }}
+              disabled={!!pickingTicker}
             >
               <div className="ticker-card__symbol">{t}</div>
-              {v && (
+              {isPicking ? (
+                <div className="ticker-card__loading-state">
+                  <span className="ticker-card__spinner" />
+                  Loading coverage…
+                </div>
+              ) : v ? (
                 <div className="ticker-card__verdict-mini">
                   {(v.response || '').slice(0, 90)}…
                 </div>
-              )}
+              ) : null}
               <div className="ticker-card__cta">
-                Open cockpit <span className="ticker-card__arrow">→</span>
+                {isPicking ? 'Resolving company + loading data…' : <>Open cockpit <span className="ticker-card__arrow">→</span></>}
               </div>
-              <button
-                className="ticker-card__remove"
-                onClick={(e) => { e.stopPropagation(); removeTicker(t); }}
-                title="Remove from watchlist"
-              >×</button>
+              {!isPicking && (
+                <button
+                  className="ticker-card__remove"
+                  onClick={(e) => { e.stopPropagation(); removeTicker(t); }}
+                  title="Remove from watchlist"
+                >×</button>
+              )}
             </button>
           );
         })}

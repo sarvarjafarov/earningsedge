@@ -1449,6 +1449,22 @@ function App({ onBackToLanding }) {
             remembers every prior verdict.
           </p>
 
+          {/* Loading banner — pinned at the top of the page while coverage
+              is fetching. Without this the user clicks a ticker and stares
+              at unchanged UI for 10-15 seconds. */}
+          {coverageLoading && (
+            <div className="coverage-loading-banner" role="status" aria-live="polite">
+              <span className="coverage-loading-banner__spinner" />
+              <div>
+                <strong>Loading {coverageForm.ticker || 'company'} coverage…</strong>
+                <div className="coverage-loading-banner__hint">
+                  Fetching fundamentals, peers, analyst consensus, news sentiment,
+                  macro context, and last year's verdicts — usually 10-15 seconds.
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Watchlist + briefing — the primary entry point. Click a chip to load. */}
           <MorningBriefingPanel
             onPickTicker={(t) => {
@@ -1817,6 +1833,57 @@ function App({ onBackToLanding }) {
         {/* ----- LIVE AUDIO TAB ----- */}
         {companyView === 'live' && (
           <div className="cockpit-pane">
+            {/* === Always-visible live session control bar === */}
+            <div className="live-control-bar">
+              <div className="live-control-bar__left">
+                {mode === 'listening' ? (
+                  <>
+                    <span className="live-control-bar__dot" />
+                    <strong>Live</strong>
+                    <span className="live-control-bar__hint">
+                      Streaming audio · {transcript.length} transcript line{transcript.length === 1 ? '' : 's'} captured
+                    </span>
+                  </>
+                ) : mode === 'paused' ? (
+                  <>
+                    <span className="live-control-bar__dot live-control-bar__dot--paused" />
+                    <strong>Paused</strong>
+                    <span className="live-control-bar__hint">
+                      Audio stream is paused — agent will resume scoring on Resume
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <strong>Live audio session</strong>
+                    <span className="live-control-bar__hint">
+                      Click <em>Listen live</em> in the top bar to start streaming audio
+                    </span>
+                  </>
+                )}
+              </div>
+              <div className="live-control-bar__actions">
+                {(mode === 'listening' || mode === 'paused') && (
+                  <>
+                    <button
+                      className="btn btn-ghost"
+                      onClick={togglePause}
+                      title={paused ? 'Resume listening to the call' : 'Pause listening so you can ask a question'}
+                    >
+                      {paused ? '▶ Resume' : '⏸ Pause'}
+                    </button>
+                    <button
+                      className="btn btn-primary live-control-bar__end"
+                      onClick={endCallAndSummarize}
+                      disabled={summarizing}
+                      title="End the call and generate the analyst summary report"
+                    >
+                      {summarizing ? '⏳ Generating summary…' : '⏹ End call & generate summary'}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
             <PersonaPulsePanel ticker={identified?.ticker} transcript={transcript} />
             <PatternMatchesPanel ticker={identified?.ticker} transcript={transcript} />
             <div className="dashboard-grid dashboard-grid--overview">
