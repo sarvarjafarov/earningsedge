@@ -156,22 +156,22 @@ const FEATURES = [
   {
     icon: Icon.Mic,
     title: 'Live transcription',
-    body: 'Share the browser tab playing the webcast — Gemini Live transcribes the call as it streams. Speaker-tagged, instantly searchable.',
+    body: 'Share the browser tab playing any company audio — earnings webcast, news segment, conference talk. Gemini 3 Live transcribes in real time, speaker-tagged and searchable.',
+  },
+  {
+    icon: Icon.Users,
+    title: 'Five investors react',
+    body: 'Cathie Wood, Michael Burry, Druckenmiller, Cramer, and Howard Marks each take the live transcript through their lens — bullish, bearish, accounting concern, macro tilt — every ~60 seconds as the call unfolds.',
   },
   {
     icon: Icon.Verdict,
-    title: 'Committee verdict',
-    body: 'Seven specialist agents synthesize a single BUY · HOLD · SHORT call with confidence and a written thesis. No black box.',
-  },
-  {
-    icon: Icon.Chart,
-    title: 'Pre-call coverage',
-    body: 'Fundamentals, peer comps, analyst targets, macro & technicals — all loaded in seconds before the first word of the call.',
+    title: 'Chairman + committee verdict',
+    body: 'A Google ADK root agent synthesizes eight specialist sub-agents (sentiment · metrics · peers · macro · technicals · analyst · news · pattern match) into one BUY · HOLD · SHORT with a written thesis. You see every vote.',
   },
   {
     icon: Icon.Money,
-    title: 'Paper trading',
-    body: 'Confirm-then-execute orders via Alpaca paper. Real workflow, no real money. The PAPER badge is always visible.',
+    title: 'Paper trading + Atlas memory',
+    body: 'Confirm-then-execute orders via Alpaca paper — never real money. Every verdict is embedded into MongoDB Atlas Vector Search, so the next call references what the committee said last quarter.',
   },
 ];
 
@@ -179,28 +179,69 @@ const STEPS = [
   {
     n: 1,
     title: 'Pick a company',
-    body: 'Type a ticker like NVDA, or just speak the company name. Coverage starts loading immediately.',
+    body: 'Type a ticker (NVDA, AAPL, ANY) or just speak the company name. Coverage — peers, analyst targets, macro, technicals — starts loading in seconds.',
   },
   {
     n: 2,
     title: 'Listen live',
-    body: 'Open any browser tab playing audio — earnings webcast, news segment, conference live stream — then click Listen live and share that tab with audio.',
+    body: 'Share a browser tab playing the audio — earnings webcast, fireside chat, news interview, conference stream. Six cockpit tabs (Verdict · Committee · Live · Memory · Sentiment · Coverage) light up as the call unfolds.',
   },
   {
     n: 3,
-    title: 'Decide',
-    body: 'Read the live transcript, watch sentiment shift, ask the analyst questions, and place paper trades from the verdict.',
+    title: 'Decide — with help',
+    body: 'Watch five named investors react in real time. Ask the Chairman a question by voice; the agent answers out loud. Place a paper trade from the verdict. Every conclusion is written to Atlas memory for the next call.',
   },
 ];
 
 const COMMITTEE = [
-  { icon: Icon.Globe, name: 'Macro Agent', body: 'Yield curve, FRED data, policy stance.' },
-  { icon: Icon.Pulse, name: 'Technical Agent', body: 'SMA crossovers, MACD, RSI, momentum.' },
-  { icon: Icon.Users, name: 'Peer Agent', body: 'Multiples vs. competitors. Where the company sits in the cohort.' },
-  { icon: Icon.Verdict, name: 'Analyst Agent', body: 'Sell-side consensus, target upside, recent revisions.' },
-  { icon: Icon.News, name: 'News Agent', body: 'Headlines classified by sentiment, deduped, weighted.' },
-  { icon: Icon.Sentiment, name: 'Sentiment Agent', body: 'Live tone of the call: bullish drivers, bearish drivers, risks.' },
-  { icon: Icon.Chart, name: 'Synthesis Committee', body: 'Weights every voice into one verdict + a one-paragraph thesis.' },
+  { icon: Icon.Mic, name: 'Transcript Agent', body: 'Gemini 3 Live streams speaker-tagged transcript at ~150ms latency. The substrate every other agent reads.' },
+  { icon: Icon.Sentiment, name: 'Sentiment Agent', body: 'Live tone of the call broken into bullish drivers, bearish drivers, and risk overlays.' },
+  { icon: Icon.Chart, name: 'Metrics Agent', body: 'Revenue, margin, EPS — surprise vs. consensus, sliced from the call and 10-Q.' },
+  { icon: Icon.Users, name: 'Peer Agent', body: 'Multiples vs. competitors. Where the company sits in its cohort right now.' },
+  { icon: Icon.Globe, name: 'Macro Agent', body: 'Yield curve, FRED data, policy stance — does the macro backdrop help or hurt?' },
+  { icon: Icon.Pulse, name: 'Technical Agent', body: 'SMA crossovers, MACD, RSI, momentum — chart context for the verdict.' },
+  { icon: Icon.Verdict, name: 'Analyst Agent', body: 'Sell-side consensus, target upside, recent revisions, dispersion of estimates.' },
+  { icon: Icon.News, name: 'News Agent', body: 'Headlines classified by sentiment, deduped, weighted to the company.' },
+  { icon: Icon.Chart, name: 'Pattern-Match Agent', body: 'MongoDB Atlas Vector Search over prior verdicts: "this call looks like NVDA Q3 ’24 — here\'s what happened next."' },
+  { icon: Icon.Verdict, name: 'Chairman (Google ADK)', body: 'Root ADK LlmAgent weights every specialist, writes the thesis, and explains its tool calls. The verdict you trade on.' },
+];
+
+const PERSONAS = [
+  {
+    initials: 'CW',
+    name: 'Cathie Wood',
+    lens: 'Innovation · disruption',
+    body: 'Hears AI tailwinds, TAM expansion, optionality. Bullish when the call signals platform pivot or compute leverage.',
+    accent: 'persona-bull',
+  },
+  {
+    initials: 'MB',
+    name: 'Michael Burry',
+    lens: 'Forensic accounting',
+    body: 'Reads between the lines for one-time items, channel stuffing, working-capital tricks. Bearish on dressed-up numbers.',
+    accent: 'persona-bear',
+  },
+  {
+    initials: 'SD',
+    name: 'Stan Druckenmiller',
+    lens: 'Top-down macro',
+    body: 'Asks where the dollar, rates, and credit stand. Sizes the position to the macro backdrop, not the line item.',
+    accent: 'persona-neutral',
+  },
+  {
+    initials: 'JC',
+    name: 'Jim Cramer',
+    lens: 'Retail pulse · narrative',
+    body: 'Tracks the story arc. Catches the soundbite that will move the stock at the open — for better or worse.',
+    accent: 'persona-bull',
+  },
+  {
+    initials: 'HM',
+    name: 'Howard Marks',
+    lens: 'Cycles · sober risk',
+    body: 'Asks where we are in the cycle and what the call price-in already. Patience over conviction; risk over reward.',
+    accent: 'persona-neutral',
+  },
 ];
 
 export default function Landing({ onOpenApp }) {
@@ -217,9 +258,10 @@ export default function Landing({ onOpenApp }) {
   const [finalRef, finalIn] = useReveal();
 
   // Animated counters for hero stats (kick in when the hero is visible).
-  const [statSecRef, statSec] = useCountUp(60);
-  const [statAgentsRef, statAgents] = useCountUp(7);
-  const [statVerdictRef, statVerdict] = useCountUp(1);
+  const [statInvestorsRef, statInvestors] = useCountUp(5);
+  const [statAgentsRef, statAgents] = useCountUp(10);
+  const [statTabsRef, statTabs] = useCountUp(6);
+  const [personasRef, personasIn] = useReveal();
 
   return (
     <div className="lp-root">
@@ -241,6 +283,7 @@ export default function Landing({ onOpenApp }) {
           <nav className="lp-topbar-links" aria-label="Sections">
             <a href="#features">Features</a>
             <a href="#how-it-works">How it works</a>
+            <a href="#personas">Investors</a>
             <a href="#committee">Committee</a>
             <a
               href="https://github.com/anthropics/claude-code"
@@ -269,19 +312,20 @@ export default function Landing({ onOpenApp }) {
         <div className="lp-hero-inner">
           <div className="lp-hero-eyebrow">
             <span className="lp-hero-dot" />
-            Real-time company audio cockpit · paper trading
+            Real-time AI cockpit · five-investor pulse · paper trading
           </div>
 
           <h1 className="lp-hero-title">
-            Walk into every call, every interview <br />
-            <span className="lp-hero-title-accent">with the cockpit.</span>
+            Five investors. One Chairman. <br />
+            <span className="lp-hero-title-accent">Every call you stream.</span>
           </h1>
 
           <p className="lp-hero-sub">
-            Pre-call coverage, live transcript, peer benchmarks, macro context,
-            and a committee-driven trade signal — synced as audio unfolds.
-            Stream an earnings webcast, news segment, or conference talk from any
-            browser tab. Paper-trade in one click.
+            Share any browser tab playing audio — an earnings webcast, fireside chat,
+            news interview, conference talk. Gemini 3 Live transcribes. Cathie Wood,
+            Burry, Druckenmiller, Cramer, and Marks react in real time. A Google ADK
+            Chairman synthesizes ten specialist agents into one verdict and writes it
+            to MongoDB Atlas memory for the next call. Paper-trade in one click.
           </p>
 
           <div className="lp-hero-ctas">
@@ -294,9 +338,9 @@ export default function Landing({ onOpenApp }) {
           </div>
 
           <div className="lp-hero-stats">
-            <div className="lp-hero-stat" ref={statSecRef}>
-              <span className="lp-hero-stat-value">&lt; {statSec}s</span>
-              <span className="lp-hero-stat-label">to load coverage</span>
+            <div className="lp-hero-stat" ref={statInvestorsRef}>
+              <span className="lp-hero-stat-value">{statInvestors}</span>
+              <span className="lp-hero-stat-label">named investors react</span>
             </div>
             <div className="lp-hero-stat-div" />
             <div className="lp-hero-stat" ref={statAgentsRef}>
@@ -304,9 +348,9 @@ export default function Landing({ onOpenApp }) {
               <span className="lp-hero-stat-label">specialist agents</span>
             </div>
             <div className="lp-hero-stat-div" />
-            <div className="lp-hero-stat" ref={statVerdictRef}>
-              <span className="lp-hero-stat-value">{statVerdict}</span>
-              <span className="lp-hero-stat-label">committee verdict</span>
+            <div className="lp-hero-stat" ref={statTabsRef}>
+              <span className="lp-hero-stat-value">{statTabs}</span>
+              <span className="lp-hero-stat-label">cockpit tabs</span>
             </div>
           </div>
         </div>
@@ -355,14 +399,53 @@ export default function Landing({ onOpenApp }) {
         </div>
       </section>
 
+      {/* ───── Five investors react (new) ───── */}
+      <section
+        className={`lp-section lp-reveal ${personasIn ? 'is-revealed' : ''}`}
+        id="personas"
+        ref={personasRef}
+      >
+        <div className="lp-section-inner">
+          <div className="lp-section-eyebrow">Five lenses on the same call</div>
+          <h2 className="lp-section-title">A pulse you can read in a glance.</h2>
+          <p className="lp-section-lede">
+            Every ~60 seconds while a call is live, five named-investor agents
+            re-read the latest transcript. Each card shows a sentiment score, a
+            one-line reaction, and a flag (pattern match · accounting concern ·
+            guidance signal · tone shift) when the moment warrants it.
+          </p>
+
+          <div className="lp-personas">
+            {PERSONAS.map((p) => (
+              <div className={`lp-persona ${p.accent}`} key={p.name}>
+                <div className="lp-persona-head">
+                  <span className="lp-persona-mark" aria-hidden="true">{p.initials}</span>
+                  <div className="lp-persona-name-block">
+                    <div className="lp-persona-name">{p.name}</div>
+                    <div className="lp-persona-lens">{p.lens}</div>
+                  </div>
+                </div>
+                <p className="lp-persona-body">{p.body}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="lp-personas-foot">
+            Powered by direct Gemini 3 calls in parallel — five reactions in
+            ~1.5 seconds, every minute the call is live.
+          </div>
+        </div>
+      </section>
+
       {/* ───── Committee ───── */}
-      <section className={`lp-section lp-reveal ${committeeIn ? 'is-revealed' : ''}`} id="committee" ref={committeeRef}>
+      <section className={`lp-section lp-section-alt lp-reveal ${committeeIn ? 'is-revealed' : ''}`} id="committee" ref={committeeRef}>
         <div className="lp-section-inner">
           <div className="lp-section-eyebrow">The committee</div>
-          <h2 className="lp-section-title">Seven specialists. One verdict.</h2>
+          <h2 className="lp-section-title">Ten specialists. One Chairman. Every vote visible.</h2>
           <p className="lp-section-lede">
-            Each agent owns one slice of the picture. The synthesis committee weights
-            their votes and writes the thesis. You see the votes, not just the answer.
+            Each agent owns one slice of the picture and votes with a confidence
+            score. A Google ADK Chairman LlmAgent weights every vote, writes the
+            thesis, and shows you the tool calls it made along the way. No black box.
           </p>
 
           <div className="lp-committee">
@@ -380,7 +463,7 @@ export default function Landing({ onOpenApp }) {
       </section>
 
       {/* ───── Trust + honest copy ───── */}
-      <section className={`lp-section lp-section-alt lp-reveal ${trustIn ? 'is-revealed' : ''}`} ref={trustRef}>
+      <section className={`lp-section lp-reveal ${trustIn ? 'is-revealed' : ''}`} ref={trustRef}>
         <div className="lp-section-inner lp-trust">
           <div className="lp-trust-block">
             <div className="lp-section-eyebrow">Built on</div>
@@ -395,8 +478,21 @@ export default function Landing({ onOpenApp }) {
                 <span className="lp-stack-tag lp-stack-tag-ai">AI</span>
                 <div className="lp-stack-chips">
                   <span className="lp-stack-chip">
-                    <span className="lp-stack-chip-name">Gemini Live</span>
-                    <span className="lp-stack-chip-role">Live transcription · agents</span>
+                    <span className="lp-stack-chip-name">Gemini 3 Live</span>
+                    <span className="lp-stack-chip-role">Live transcript · personas · voice</span>
+                  </span>
+                  <span className="lp-stack-chip">
+                    <span className="lp-stack-chip-name">Google Agent Builder (ADK)</span>
+                    <span className="lp-stack-chip-role">Chairman LlmAgent · sub-agents</span>
+                  </span>
+                </div>
+              </div>
+              <div className="lp-stack-row">
+                <span className="lp-stack-tag lp-stack-tag-data">MEMORY</span>
+                <div className="lp-stack-chips">
+                  <span className="lp-stack-chip">
+                    <span className="lp-stack-chip-name">MongoDB Atlas Vector Search</span>
+                    <span className="lp-stack-chip-role">Verdict embeddings · pattern match</span>
                   </span>
                 </div>
               </div>
@@ -404,20 +500,16 @@ export default function Landing({ onOpenApp }) {
                 <span className="lp-stack-tag lp-stack-tag-data">MARKET</span>
                 <div className="lp-stack-chips">
                   <span className="lp-stack-chip">
-                    <span className="lp-stack-chip-name">Alpha Vantage</span>
-                    <span className="lp-stack-chip-role">Quotes · OHLC</span>
+                    <span className="lp-stack-chip-name">Finnhub</span>
+                    <span className="lp-stack-chip-role">Quotes · analyst consensus</span>
                   </span>
                   <span className="lp-stack-chip">
                     <span className="lp-stack-chip-name">Financial Modeling Prep</span>
-                    <span className="lp-stack-chip-role">Fundamentals · peers</span>
+                    <span className="lp-stack-chip-role">Fundamentals · earnings calendar</span>
                   </span>
                   <span className="lp-stack-chip">
-                    <span className="lp-stack-chip-name">Finnhub</span>
-                    <span className="lp-stack-chip-role">Analyst consensus</span>
-                  </span>
-                  <span className="lp-stack-chip">
-                    <span className="lp-stack-chip-name">yfinance</span>
-                    <span className="lp-stack-chip-role">Backstop history</span>
+                    <span className="lp-stack-chip-name">Alpha Vantage</span>
+                    <span className="lp-stack-chip-role">Backstop OHLC</span>
                   </span>
                 </div>
               </div>
@@ -426,7 +518,7 @@ export default function Landing({ onOpenApp }) {
                 <div className="lp-stack-chips">
                   <span className="lp-stack-chip">
                     <span className="lp-stack-chip-name">FRED</span>
-                    <span className="lp-stack-chip-role">Treasury curve · econ</span>
+                    <span className="lp-stack-chip-role">Treasury curve · econ data</span>
                   </span>
                 </div>
               </div>
@@ -435,7 +527,7 @@ export default function Landing({ onOpenApp }) {
                 <div className="lp-stack-chips">
                   <span className="lp-stack-chip">
                     <span className="lp-stack-chip-name">Alpaca paper</span>
-                    <span className="lp-stack-chip-role">Paper account · orders</span>
+                    <span className="lp-stack-chip-role">Paper account · order execution</span>
                   </span>
                 </div>
               </div>

@@ -53,7 +53,7 @@ function writeJsonLS(key, value) {
 
 // Bundle stamp — bumped whenever a non-visible fix needs to force a new
 // content hash so browsers refetch instead of serving stale cached JS.
-const BUILD_TAG = '2026-06-06T18:00-persona-panel-hooks-fix-v5';
+const BUILD_TAG = '2026-06-06T18:30-marketing-refresh-v6';
 
 function App({ onBackToLanding }) {
   useEffect(() => {
