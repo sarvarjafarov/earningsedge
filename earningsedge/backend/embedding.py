@@ -39,6 +39,18 @@ def _mark_quota_hit() -> None:
     _quota_blocked_until = time.monotonic() + QUOTA_COOLDOWN_S
 
 
+# Shared client — reuses HTTP connection pool across embed calls.
+_shared_client = None
+
+
+def _get_client():
+    global _shared_client
+    if _shared_client is None:
+        from google import genai
+        _shared_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    return _shared_client
+
+
 async def embed_text(text: str) -> list[float] | None:
     """Embed a single string. Returns None on any failure."""
     if not text or not text.strip():
@@ -46,8 +58,7 @@ async def embed_text(text: str) -> list[float] | None:
     if _quota_blocked():
         return None
     try:
-        from google import genai
-        client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        client = _get_client()
         # The official SDK exposes embed_content on the sync `models` API;
         # offload to a thread so we don't block the FastAPI event loop.
         def _sync_embed() -> list[float] | None:

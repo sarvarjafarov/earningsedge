@@ -16,20 +16,29 @@ export default function PatternMatchesPanel({ ticker, transcript }) {
   const API_BASE = getApiBase();
   const [matches, setMatches] = useState([]);
   const lastProcessedIdxRef = useRef(0);
+  const lastFiredAtRef = useRef(0);
 
   useEffect(() => {
     if (!ticker || !Array.isArray(transcript) || transcript.length === 0) return;
     // Process newly arrived lines only.
     const newLines = transcript.slice(lastProcessedIdxRef.current);
-    if (newLines.length === 0) return;
+    // Only fire when we have at least 3 new lines AND it's been ≥20s since
+    // the last call. Prevents flooding /api/transcript/highlights during
+    // dense transcription bursts (the endpoint then queues, fills memory,
+    // and crashes the dyno on Heroku Basic).
+    if (newLines.length < 3) return;
+    const now = Date.now();
+    if (now - lastFiredAtRef.current < 20000) return;
     lastProcessedIdxRef.current = transcript.length;
+    lastFiredAtRef.current = now;
 
     let cancelled = false;
     (async () => {
       try {
         const payload = newLines
           .map((l) => (l && l.text ? l.text : ''))
-          .filter((s) => s && s.length >= 20);
+          .filter((s) => s && s.length >= 20)
+          .slice(-5);  // cap batch size client-side too
         if (payload.length === 0) return;
         const r = await fetch(`${API_BASE}/api/transcript/highlights`, {
           method: 'POST',

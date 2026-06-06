@@ -34,6 +34,19 @@ _log = logging.getLogger("earningsedge.persona_pulse")
 
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
+# Shared client — creating a new genai.Client per persona per call
+# leaked HTTP connection pools and accumulated dyno memory under live audio.
+_shared_client = None
+
+
+def _get_client():
+    """Lazily construct and reuse a single genai.Client."""
+    global _shared_client
+    if _shared_client is None:
+        from google import genai
+        _shared_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    return _shared_client
+
 
 # Each persona's *pulse* prompt is short on purpose — we want a quick
 # instinctive read, not a full investment memo.
@@ -148,7 +161,7 @@ async def _one_persona(key: str, ticker: str, transcript: str) -> dict[str, Any]
     response timing on flash; we don't add extra timeouts."""
     persona = PERSONA_PROMPTS[key]
     try:
-        client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        client = _get_client()
         prompt = _PULSE_USER_PROMPT_TMPL.format(ticker=ticker, transcript=transcript)
         # Gemini 3 family flash burns "thinking" tokens before output;
         # disable thinking entirely so our 512-token budget is all output.

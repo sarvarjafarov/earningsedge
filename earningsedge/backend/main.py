@@ -562,19 +562,33 @@ async def transcript_highlights(body: dict[str, Any]) -> dict[str, Any]:
     corpus. Returns per-line similarity scores so the UI can highlight
     lines that rhyme with prior committee decisions.
 
-    Designed to be called on every batch of new transcript lines arriving
-    over /ws/transcripts. Each line is embedded once; the embedded vector
-    is cached in-memory for the session.
+    Bounded latency: capped at 6 lines per request, 1.5s per line, 8s
+    total budget. When Atlas circuit is open, fast-fails to empty so the
+    request doesn't pile up against the Heroku H12 timeout.
     """
     from vector_memory import find_similar_verdicts
+    from atlas_circuit import is_open
+    from embedding import _quota_blocked
+
     lines = body.get("lines") or []
     ticker = (body.get("ticker") or "").strip().upper() or None
     if not isinstance(lines, list) or not lines:
         return {"ok": True, "lines": []}
-    # Cap to keep the per-call latency bounded.
-    lines = lines[:30]
+
+    # Fast-fail when Atlas circuit is open OR Gemini embedding quota is
+    # blocked — both would make this endpoint slow and ineffective.
+    if is_open() or _quota_blocked():
+        return {"ok": True, "lines": [{"text": str(l)[:280], "match": None} for l in lines[:6]]}
+
+    # Cap aggressively to keep total latency well under Heroku's 30s router timeout.
+    lines = lines[:6]
     results = []
+    total_budget = 8.0
+    start = asyncio.get_event_loop().time()
     for line in lines:
+        if asyncio.get_event_loop().time() - start > total_budget:
+            results.append({"text": str(line)[:280], "match": None})
+            continue
         text = (line if isinstance(line, str) else line.get("text", "")).strip()
         if not text or len(text) < 20:
             results.append({"text": text, "match": None})
@@ -582,7 +596,7 @@ async def transcript_highlights(body: dict[str, Any]) -> dict[str, Any]:
         try:
             matches = await asyncio.wait_for(
                 find_similar_verdicts(text, ticker=ticker, k=1),
-                timeout=8.0,
+                timeout=1.5,
             )
         except Exception:
             matches = []
