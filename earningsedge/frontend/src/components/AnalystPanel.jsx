@@ -11,13 +11,6 @@ function fmtMoney(x) {
   })}`;
 }
 
-function fmtDeltaNorm(x) {
-  if (x == null || Number.isNaN(Number(x))) return '—';
-  const n = Number(x);
-  const sign = n > 0 ? '+' : '';
-  return `${sign}${n.toFixed(2)}`;
-}
-
 function fmtTargetDate(raw) {
   if (raw == null || raw === '') return null;
   const s = String(raw).trim();

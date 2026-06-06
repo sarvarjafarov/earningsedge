@@ -18,6 +18,7 @@ export default function PersonaPulsePanel({ ticker, transcript }) {
   const [updating, setUpdating] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [elapsed, setElapsed] = useState(null);
+  const [expanded, setExpanded] = useState(null);
   const lastPollAtRef = useRef(0);
   const lastBufferLenRef = useRef(0);
 
@@ -80,8 +81,6 @@ export default function PersonaPulsePanel({ ticker, transcript }) {
   if (!ticker || (personas.length === 0 && !buffer.trim())) {
     return null;
   }
-
-  const [expanded, setExpanded] = useState(null);
 
   return (
     <section className="persona-pulse">
@@ -155,10 +154,6 @@ function sentimentBucket(s) {
   if (v >= 0.35) return 'bull';
   if (v <= -0.35) return 'bear';
   return 'neutral';
-}
-
-function labelFromBucket(b) {
-  return b === 'bull' ? 'BULLISH' : b === 'bear' ? 'BEARISH' : 'NEUTRAL';
 }
 
 function flagLabel(f) {

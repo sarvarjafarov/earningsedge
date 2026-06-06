@@ -18,7 +18,7 @@ import PatternMatchesPanel from './components/PatternMatchesPanel';
 import TradingPanel from './components/TradingPanel';
 import CommitteeView from './components/CommitteeView';
 import OnboardingTour from './components/OnboardingTour';
-import AudioStream, { getMicStream, getTabAudioStream } from './lib/audioStream';
+import AudioStream, { getTabAudioStream } from './lib/audioStream';
 import AudioPlayer from './lib/audioPlayer';
 import { getApiBase, getWsUrl, getSessionId, sessionHeaders } from './apiConfig';
 
@@ -90,7 +90,7 @@ function App({ onBackToLanding }) {
     }
     return { ticker: null, company_name: null, sector: null, quarter: null, fiscal_year: null };
   });
-  const [recentTickers, setRecentTickers] = useState(() => {
+  const [, setRecentTickers] = useState(() => {
     const raw = readJsonLS(LS_RECENT);
     return Array.isArray(raw) ? raw.slice(0, RECENT_MAX) : [];
   });
@@ -623,51 +623,6 @@ function App({ onBackToLanding }) {
     } finally {
       if (coverageAbortRef.current === ac) coverageAbortRef.current = null;
       setCoverageLoading(false);
-    }
-  };
-
-  /** Push-to-talk: open mic, speak one command, then tap "Done speaking". */
-  const startVoiceBriefing = async () => {
-    if (mode !== 'idle' && mode !== 'ready') return;
-    setErrorMsg(null);
-    if (!identified.ticker) {
-      resetState();
-      setCoverageForm({ ticker: '', company_name: '', quarter: '', year: '' });
-    } else {
-      setTranscript([]);
-      setTranscriptPartial(null);
-    }
-    setSessionStatus('connecting');
-    setMode('briefing');
-    setChatCollapsed(false);
-
-    const player = new AudioPlayer();
-    audioPlayerRef.current = player;
-
-    const stream = new AudioStream();
-    audioStreamRef.current = stream;
-    try {
-      await stream.connect({
-        wsUrl: getWsUrl('/ws/audio'),
-        onClose: () => {
-          if (audioStreamRef.current === stream) {
-            teardownCapture();
-            setMode(identifiedRef.current?.ticker ? 'ready' : 'idle');
-            setSessionStatus('idle');
-          }
-        },
-        onError: (err) => setErrorMsg(String(err?.message || err)),
-        onSourceChange: (src) => setActiveSource(src),
-        onLevel: (stats) => setAudioMeter(stats),
-      });
-      stream.sendControl({ control: 'phase', phase: 'briefing' });
-      const mic = await getMicStream();
-      await stream.attachMicOnly(mic);
-    } catch (err) {
-      setErrorMsg(String(err?.message || err));
-      setSessionStatus('error');
-      setMode(identified.ticker ? 'ready' : 'idle');
-      await teardownCapture();
     }
   };
 
@@ -1304,54 +1259,6 @@ function App({ onBackToLanding }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadRecent = async (ticker) => {
-    if (!ticker || coverageLoading) return;
-    setCoverageForm({ ticker, company_name: '', quarter: '', year: '' });
-    if (coverageAbortRef.current) {
-      try { coverageAbortRef.current.abort(); } catch (_) {}
-    }
-    const ac = new AbortController();
-    coverageAbortRef.current = ac;
-    setCoverageLoading(true);
-    setErrorMsg(null);
-    clearPanelDataForLoad();
-    try {
-      const r = await fetch(`${API_BASE}/api/coverage`, {
-        method: 'POST',
-        headers: sessionHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ ticker, company_name: null, quarter: null, year: null }),
-        signal: ac.signal,
-      });
-      const j = await r.json();
-      if (ac.signal.aborted) return;
-      if (!j.ok) throw new Error(j.error || 'Could not load company coverage');
-      if (j.company) {
-        setIdentified({
-          ticker: j.company.ticker || ticker,
-          company_name: j.company.company_name || null,
-          sector: j.company.sector || null,
-          quarter: j.company.quarter || null,
-          fiscal_year: j.company.fiscal_year ?? null,
-        });
-      }
-      setAnalystOpinion(
-        j.analyst_opinion != null && typeof j.analyst_opinion === 'object' ? j.analyst_opinion : {},
-      );
-      setAnalystOpinionError(null);
-      setMode('ready');
-    } catch (err) {
-      if (err?.name === 'AbortError') return;
-      setErrorMsg(String(err?.message || err));
-    } finally {
-      if (coverageAbortRef.current === ac) coverageAbortRef.current = null;
-      setCoverageLoading(false);
-    }
-  };
-
-  const clearRecents = () => {
-    setRecentTickers([]);
-    writeJsonLS(LS_RECENT, []);
-  };
   const stageLabel = mode === 'briefing'
     ? 'Listening for company name…'
     : mode === 'listening'

@@ -145,18 +145,6 @@ function DriverCard({ driver, polarity }) {
   );
 }
 
-function PhraseChip({ children }) {
-  return <li className="sentiment-phrase-chip">{children}</li>;
-}
-
-function formatDeltaNorm(x) {
-  if (x == null || x === '') return '—';
-  const n = Number(x);
-  if (!Number.isFinite(n)) return '—';
-  const s = n >= 0 ? '+' : '';
-  return `${s}${n.toFixed(2)}`;
-}
-
 function formatMoney(x) {
   if (x == null || x === '') return '—';
   const n = Number(x);
