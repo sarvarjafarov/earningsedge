@@ -1579,7 +1579,11 @@ function App({ onBackToLanding }) {
                 Change company
               </button>
             )}
-            {mode === 'ready' && (
+            {/* Top-bar primary CTA — but only when there's NO active session.
+                If there's a transcript already, the End-call button in the
+                Live audio tab is the canonical action; showing Listen-live
+                here too creates two conflicting CTAs. */}
+            {mode === 'ready' && transcript.length === 0 && sessionStatus !== 'disconnected' && (
               <button
                 type="button"
                 className="btn btn-primary ccb-primary"
@@ -1599,6 +1603,19 @@ function App({ onBackToLanding }) {
                 ) : (
                   <><span aria-hidden="true">▶</span> Listen live</>
                 )}
+              </button>
+            )}
+            {/* Reconnect button when session was disconnected. Replaces the
+                Listen-live position so we never show 2 conflicting CTAs. */}
+            {sessionStatus === 'disconnected' && (
+              <button
+                type="button"
+                className="btn btn-primary ccb-primary"
+                onClick={requestStartEarningsCall}
+                disabled={!geminiLive.available}
+                title="Reconnect to keep listening — the transcript so far is preserved"
+              >
+                <span aria-hidden="true">↻</span> Reconnect
               </button>
             )}
             {mode === 'briefing' && (
