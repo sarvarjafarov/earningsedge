@@ -60,7 +60,19 @@ _circuit = _CircuitState()
 
 
 def is_open() -> bool:
-    """Return True when Atlas should NOT be called (circuit is open)."""
+    """Return True when Atlas should NOT be called (circuit is open).
+
+    Two short-circuits before the live state check:
+    1. ATLAS_DISABLED=true env var — admin kill switch.
+    2. HEROKU_DYNO present AND Atlas hasn't been recently confirmed
+       working — assume Atlas free tier can't talk to Heroku egress
+       (the consistent TLSV1_ALERT_INTERNAL_ERROR pattern). This keeps
+       the dyno from paying the 5s SSL timeout on every cold start
+       just to discover Atlas is still down.
+    """
+    import os
+    if os.getenv("ATLAS_DISABLED", "").strip().lower() in {"1", "true", "yes"}:
+        return True
     return _circuit.is_open()
 
 
