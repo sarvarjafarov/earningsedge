@@ -13,6 +13,7 @@ import ChairmanADKPanel from './components/ChairmanADKPanel';
 import MorningBriefingPanel from './components/MorningBriefingPanel';
 import PatternAlertsPanel from './components/PatternAlertsPanel';
 import NewsDigestPanel from './components/NewsDigestPanel';
+import PersonaPulsePanel from './components/PersonaPulsePanel';
 import TradingPanel from './components/TradingPanel';
 import CommitteeView from './components/CommitteeView';
 import OnboardingTour from './components/OnboardingTour';
@@ -1755,6 +1756,11 @@ function App({ onBackToLanding }) {
             </button>
           ))}
         </div>
+
+        {/* Live persona pulse — five named investors reacting to the
+            live transcript in real time. Auto-fires while a transcript
+            buffer exists. Hidden when no transcript yet. */}
+        <PersonaPulsePanel ticker={identified?.ticker} transcript={transcript} />
 
         {/* 3-panel layout: Verdict (ADK Chairman) · Memory (Pattern Alerts) · Inputs (News).
             Replaces the prior stack of 5+ panels. Visible on every cockpit tab so

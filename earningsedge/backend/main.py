@@ -556,6 +556,24 @@ async def adk_run(body: ADKRunRequest):
     )
 
 
+@app.post("/api/personas/pulse")
+async def personas_pulse(body: dict[str, Any]) -> dict[str, Any]:
+    """Live persona pulse — five fast Gemini calls in parallel.
+
+    Each named-investor lens reacts to the recent transcript with a
+    structured score. Designed to be polled every 15-30 seconds while
+    live audio is streaming. Bounded by Gemini's per-call latency on
+    flash (~3-5s); total wall clock is the slowest single persona.
+    """
+    from persona_pulse import pulse
+    ticker = (body.get("ticker") or "").strip().upper()
+    lines = body.get("transcript") or body.get("lines") or ""
+    keys = body.get("personas") or None
+    if not ticker:
+        return {"ok": False, "error": "ticker required"}
+    return await pulse(ticker, lines, keys=keys)
+
+
 @app.post("/api/vector/ensure_index")
 async def vector_ensure_index() -> dict[str, Any]:
     """Idempotent — create the Atlas Vector Search index for verdicts.
