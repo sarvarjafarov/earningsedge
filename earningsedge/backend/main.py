@@ -946,9 +946,26 @@ async def audio_ws(ws: WebSocket) -> None:
     # broadcasts during this live call reach only the originating tab.
     session_id = ws.query_params.get("session_id") or None
     orchestrator.set_session_id(session_id)
+    # If a previous session left state behind (Heroku 30s WS idle timeout
+    # killed the prior connection before our finally-block cleanup could
+    # finish, or a network blip dropped the WS mid-stream), force a stop
+    # so the new session can proceed. Rejecting with 4009 here is what
+    # caused the "page goes blank on Listen Live" symptom: the WS handshake
+    # succeeded, the server immediately closed, the frontend onClose fired,
+    # and the End-call button vanished while the share-tab dialog was still
+    # animating away. The previous concurrent-session guard was protecting
+    # against multi-user collisions in a single-user demo, so we drop it.
     if orchestrator.transcript_agent is not None:
-        await ws.close(code=4009, reason="another capture session is already active")
-        return
+        import logging as _logging
+        _logging.getLogger("earningsedge.audio_ws").info(
+            "stale transcript_agent on new audio WS; force-stopping prior session"
+        )
+        try:
+            await orchestrator.stop()
+        except Exception as _exc:  # noqa: BLE001
+            _logging.getLogger("earningsedge.audio_ws").warning(
+                "force-stop of prior session failed (continuing): %s", _exc
+            )
 
     if not os.getenv("GEMINI_API_KEY", "").strip():
         await broadcast({

@@ -53,7 +53,7 @@ function writeJsonLS(key, value) {
 
 // Bundle stamp — bumped whenever a non-visible fix needs to force a new
 // content hash so browsers refetch instead of serving stale cached JS.
-const BUILD_TAG = '2026-06-06T17:00-listen-live-instant-tab-jump-v3';
+const BUILD_TAG = '2026-06-06T17:30-audio-ws-force-cleanup-v4';
 
 function App({ onBackToLanding }) {
   useEffect(() => {
@@ -180,6 +180,7 @@ function App({ onBackToLanding }) {
   const loadingStripTimerRef = useRef(null);
   const coverageAbortRef = useRef(null);
   const identifiedRef = useRef(identified);
+  const sessionStatusRef = useRef('idle');
   const recognitionRef = useRef(null);
 
   const dashboardWsRef = useRef(null);
@@ -192,6 +193,10 @@ function App({ onBackToLanding }) {
   useEffect(() => {
     identifiedRef.current = identified;
   }, [identified]);
+
+  useEffect(() => {
+    sessionStatusRef.current = sessionStatus;
+  }, [sessionStatus]);
 
   /** Poll the price endpoint every 30s while a ticker is loaded.
    *  The legacy PriceStream uses yfinance which is missing on the
@@ -755,6 +760,7 @@ function App({ onBackToLanding }) {
             // Now we keep the session visible and surface a "Audio
             // disconnected" banner with Reconnect + End-call options.
             const hasContent = (identifiedRef.current?.ticker) && Array.isArray(transcript) && transcript.length > 0;
+            const wasJustStarting = sessionStatusRef.current === 'connecting' || sessionStatusRef.current === 'running';
             if (hasContent) {
               setSessionStatus('disconnected');
               setErrorMsg('Audio connection dropped. The transcript so far is preserved — click Reconnect to continue listening, or End call & summarize to wrap up.');
@@ -764,6 +770,12 @@ function App({ onBackToLanding }) {
               teardownCapture();
               setMode(identifiedRef.current?.ticker ? 'ready' : 'idle');
               setSessionStatus('idle');
+              // Surface a message so the user understands why the End-call
+              // button vanished — previously this branch was silent and
+              // users thought the page had broken.
+              if (wasJustStarting) {
+                setErrorMsg('Audio connection closed before any speech was captured. Click Listen live again — if it keeps happening, check that the shared tab is actually playing audio.');
+              }
             }
           }
         },
