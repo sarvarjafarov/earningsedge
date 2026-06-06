@@ -1833,7 +1833,11 @@ function App({ onBackToLanding }) {
         {/* ----- LIVE AUDIO TAB ----- */}
         {companyView === 'live' && (
           <div className="cockpit-pane">
-            {/* === Always-visible live session control bar === */}
+            {/* === Always-visible live session control bar ===
+                Shows End call & summarize whenever there's an active session
+                OR transcript content to summarize, not just when the strict
+                mode==='listening' flag is set. That flag depends on a WS phase
+                event that doesn't always fire reliably. */}
             <div className="live-control-bar">
               <div className="live-control-bar__left">
                 {mode === 'listening' ? (
@@ -1852,6 +1856,14 @@ function App({ onBackToLanding }) {
                       Audio stream is paused — agent will resume scoring on Resume
                     </span>
                   </>
+                ) : transcript.length > 0 || sessionStatus === 'running' ? (
+                  <>
+                    <span className="live-control-bar__dot" />
+                    <strong>Session active</strong>
+                    <span className="live-control-bar__hint">
+                      {transcript.length} transcript line{transcript.length === 1 ? '' : 's'} captured · click <em>End call</em> to generate the analyst summary
+                    </span>
+                  </>
                 ) : (
                   <>
                     <strong>Live audio session</strong>
@@ -1862,15 +1874,19 @@ function App({ onBackToLanding }) {
                 )}
               </div>
               <div className="live-control-bar__actions">
-                {(mode === 'listening' || mode === 'paused') && (
+                {/* End call shows whenever there's transcript content to
+                    summarize OR any non-idle session state. */}
+                {(mode === 'listening' || mode === 'paused' || transcript.length > 0 || sessionStatus === 'running') && (
                   <>
-                    <button
-                      className="btn btn-ghost"
-                      onClick={togglePause}
-                      title={paused ? 'Resume listening to the call' : 'Pause listening so you can ask a question'}
-                    >
-                      {paused ? '▶ Resume' : '⏸ Pause'}
-                    </button>
+                    {(mode === 'listening' || mode === 'paused') && (
+                      <button
+                        className="btn btn-ghost"
+                        onClick={togglePause}
+                        title={paused ? 'Resume listening to the call' : 'Pause listening so you can ask a question'}
+                      >
+                        {paused ? '▶ Resume' : '⏸ Pause'}
+                      </button>
+                    )}
                     <button
                       className="btn btn-primary live-control-bar__end"
                       onClick={endCallAndSummarize}
