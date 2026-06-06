@@ -9083,6 +9083,25 @@ that class so they don't affect normal browser rendering.
 .live-control-bar__end:hover { filter: brightness(1.1); }
 .live-control-bar__end:disabled { opacity: 0.6; cursor: progress; }
 
+/* --- Disconnected banner (recovery after WS audio drop) ----------------- */
+.disconnected-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  padding: 14px 18px; margin-bottom: 14px;
+  background: linear-gradient(90deg, rgba(255, 195, 0, 0.18), rgba(10, 22, 40, 0.85));
+  border: 1px solid rgba(255, 195, 0, 0.5);
+  border-radius: 12px;
+  animation: cov-glow 1.6s ease-in-out infinite;
+}
+.disconnected-banner strong { color: var(--accent-yellow); font-size: 14px; }
+.disconnected-banner__hint {
+  color: var(--text-secondary); font-size: 12px; line-height: 1.5;
+  margin-top: 3px;
+}
+.disconnected-banner__hint strong {
+  color: var(--text-primary); font-size: 12px;
+}
+
 /* --- Pattern alerts panel ------------------------------------------------ */
 .pattern-alerts {
   background: linear-gradient(180deg, rgba(255, 195, 0, 0.06), rgba(10, 22, 40, 0.85));

@@ -731,9 +731,23 @@ function App({ onBackToLanding }) {
         wsUrl: getWsUrl('/ws/audio'),
         onClose: () => {
           if (audioStreamRef.current === stream) {
-            teardownCapture();
-            setMode(identifiedRef.current?.ticker ? 'ready' : 'idle');
-            setSessionStatus('idle');
+            // CRITICAL UX FIX: if we have transcript content, the session was
+            // real and the user expects to still see the End-call button.
+            // Previously this silently reset mode to 'ready', which made the
+            // Listen-live button reappear — users thought the site died.
+            // Now we keep the session visible and surface a "Audio
+            // disconnected" banner with Reconnect + End-call options.
+            const hasContent = (identifiedRef.current?.ticker) && Array.isArray(transcript) && transcript.length > 0;
+            if (hasContent) {
+              setSessionStatus('disconnected');
+              setErrorMsg('Audio connection dropped. The transcript so far is preserved — click Reconnect to continue listening, or End call & summarize to wrap up.');
+              // Keep mode='listening' so the live-control bar stays visible
+              // and the End-call button remains clickable.
+            } else {
+              teardownCapture();
+              setMode(identifiedRef.current?.ticker ? 'ready' : 'idle');
+              setSessionStatus('idle');
+            }
           }
         },
         onError: (err) => setErrorMsg(String(err?.message || err)),
@@ -749,7 +763,7 @@ function App({ onBackToLanding }) {
       setSessionStatus('running');
       // Live transcript belongs in Overview — auto-jump there so the user
       // doesn't miss the speech they just started streaming.
-      setCompanyView('verdict');
+      setCompanyView('live');
     } catch (err) {
       const msg = String(err?.message || err);
       const name = err?.name || '';
@@ -1833,6 +1847,28 @@ function App({ onBackToLanding }) {
         {/* ----- LIVE AUDIO TAB ----- */}
         {companyView === 'live' && (
           <div className="cockpit-pane">
+            {/* Disconnected banner — surfaces a recovered session after the
+                WS audio drops (Heroku H15 timeout, network blip, etc.). */}
+            {sessionStatus === 'disconnected' && (
+              <div className="disconnected-banner" role="alert">
+                <div>
+                  <strong>⚠ Audio stream disconnected</strong>
+                  <div className="disconnected-banner__hint">
+                    The transcript above is preserved. Click <strong>Reconnect</strong> to
+                    keep listening, or <strong>End call</strong> to wrap up with the agent
+                    summary.
+                  </div>
+                </div>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => requestStartEarningsCall()}
+                  disabled={sessionStatus === 'connecting'}
+                >
+                  ↻ Reconnect
+                </button>
+              </div>
+            )}
+
             {/* === Always-visible live session control bar ===
                 Shows End call & summarize whenever there's an active session
                 OR transcript content to summarize, not just when the strict
