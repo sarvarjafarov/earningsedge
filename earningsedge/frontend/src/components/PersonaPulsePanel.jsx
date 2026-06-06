@@ -18,6 +18,13 @@ export default function PersonaPulsePanel({ ticker, transcript }) {
   const [updating, setUpdating] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [elapsed, setElapsed] = useState(null);
+  // CRITICAL — must be declared with the other hooks, BEFORE any
+  // conditional early return below. Otherwise hook order differs
+  // between renders (empty-transcript render skips this hook; populated
+  // render calls it), which triggers React error #310 mid-session and
+  // crashes the whole React tree. That was the actual "page goes blank
+  // on Listen Live" bug the user was reporting.
+  const [expanded, setExpanded] = useState(null);
   const lastPollAtRef = useRef(0);
   const lastBufferLenRef = useRef(0);
 
@@ -77,11 +84,11 @@ export default function PersonaPulsePanel({ ticker, transcript }) {
 
   // Don't render until we have at least one transcript line OR the user
   // has already kicked off a manual pulse via the live-audio path.
+  // (Early return MUST stay below every hook above — see note on
+  // setExpanded.)
   if (!ticker || (personas.length === 0 && !buffer.trim())) {
     return null;
   }
-
-  const [expanded, setExpanded] = useState(null);
 
   return (
     <section className="persona-pulse">
