@@ -686,6 +686,12 @@ function App({ onBackToLanding }) {
     }
     if (mode === 'listening' || mode === 'briefing') return;
     if (sessionStatus === 'connecting') return;
+    // Jump to the Live audio tab immediately so the preflight modal,
+    // share-tab dialog, and incoming transcript all surface in the same
+    // place. Previously the view only flipped to 'live' AFTER the WS
+    // handshake succeeded, which left users staring at the Verdict tab
+    // for 5–10 seconds and made them think the click did nothing.
+    setCompanyView('live');
     if (skipPreflight) {
       startEarningsCall();
     } else {
