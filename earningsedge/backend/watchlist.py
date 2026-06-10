@@ -29,12 +29,10 @@ DEFAULT_WATCHLIST = ["NVDA", "AAPL", "MSFT", "GOOGL", "TSLA", "AMZN"]
 
 
 def _client() -> MongoClient:
-    return MongoClient(
-        os.environ["MONGODB_URI"],
-        tlsCAFile=certifi.where(),
-        serverSelectionTimeoutMS=int(os.getenv("MONGODB_SELECT_TIMEOUT_MS", "5000")),
-        socketTimeoutMS=8000,
-    )
+    """Atlas client — delegates to mcp_client's process-shared singleton.
+    See vector_memory._client for the rationale."""
+    from mcp_client import _get_pymongo_client
+    return _get_pymongo_client()
 
 
 def _db():

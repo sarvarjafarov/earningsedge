@@ -39,13 +39,15 @@ COLLECTION = "verdicts"
 
 
 def _client() -> MongoClient:
-    uri = os.environ["MONGODB_URI"]
-    return MongoClient(
-        uri,
-        tlsCAFile=certifi.where(),
-        serverSelectionTimeoutMS=int(os.getenv("MONGODB_SELECT_TIMEOUT_MS", "5000")),
-        socketTimeoutMS=8000,
-    )
+    """Atlas client — delegates to mcp_client's process-shared singleton.
+
+    Creating a fresh MongoClient per call forces topology discovery from
+    scratch every time, which intermittently hits a TLS-broken Atlas
+    free-tier shard host before failover and burns ~5s per attempt.
+    The shared client has already mapped healthy hosts.
+    """
+    from mcp_client import _get_pymongo_client
+    return _get_pymongo_client()
 
 
 def _db():

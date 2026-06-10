@@ -143,6 +143,210 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/api/atlas/health")
+async def atlas_health() -> dict[str, Any]:
+    """End-to-end Atlas health probe — pings the cluster, lists databases,
+    and counts the verdicts collection. Use this to verify Atlas is live
+    from production after toggling ATLAS_DISABLED.
+
+    Returns a structured payload — never raises — so the demo UI can show
+    a green/red indicator without crashing on Atlas outages.
+    """
+    import time as _time
+    started = _time.monotonic()
+    out: dict[str, Any] = {
+        "ok": False,
+        "atlas_disabled_env": os.getenv("ATLAS_DISABLED", "").strip().lower() in {"1", "true", "yes"},
+        "circuit_open": False,
+        "ping": None,
+        "verdict_count": None,
+        "vector_index_present": None,
+        "elapsed_ms": None,
+        "error": None,
+    }
+    try:
+        from atlas_circuit import is_open
+        out["circuit_open"] = is_open()
+    except Exception:
+        pass
+    if not os.getenv("MONGODB_URI", "").strip():
+        out["error"] = "MONGODB_URI not set"
+        out["elapsed_ms"] = round((_time.monotonic() - started) * 1000)
+        return out
+    # Use the same call pattern as the successful background warm:
+    # mcp_call('find', limit=1) routes via the shared pymongo singleton
+    # with SECONDARY_PREFERRED + retryReads, so it succeeds even when
+    # primary shard-00-00 rejects the TLS handshake.
+    try:
+        from mcp_client import mcp_call
+        db_name = os.getenv("MONGODB_DB", "earningsedge")
+        await asyncio.wait_for(
+            mcp_call("find", {
+                "database": db_name,
+                "collection": "verdicts",
+                "filter": {},
+                "limit": 1,
+            }),
+            timeout=12.0,
+        )
+        out["ping"] = "ok via mcp_call/find"
+        # Approximate verdict count via aggregation that runs against
+        # secondaries. estimatedDocumentCount may run on primary; we
+        # avoid it here.
+        try:
+            from mcp_client import _get_pymongo_client
+            client = _get_pymongo_client()
+            agg = list(client[db_name]["verdicts"].aggregate([{"$count": "n"}]))
+            out["verdict_count"] = agg[0]["n"] if agg else 0
+        except Exception as cnt_exc:  # noqa: BLE001
+            out["verdict_count_note"] = f"{type(cnt_exc).__name__}: {str(cnt_exc)[:140]}"
+        try:
+            idx_names = {idx.get("name") for idx in client[db_name]["verdicts"].list_search_indexes()}
+            out["vector_index_present"] = "verdict_vec_idx" in idx_names
+        except Exception as idx_exc:  # noqa: BLE001
+            out["vector_index_present"] = False
+            out["vector_index_note"] = f"{type(idx_exc).__name__}: {str(idx_exc)[:140]}"
+        out["ok"] = True
+    except Exception as exc:  # noqa: BLE001
+        out["error"] = f"{type(exc).__name__}: {str(exc).splitlines()[0][:200]}"
+    out["elapsed_ms"] = round((_time.monotonic() - started) * 1000)
+    return out
+
+
+@app.post("/api/atlas/seed_demo")
+async def atlas_seed_demo() -> dict[str, Any]:
+    """Idempotently seed a few example verdict documents into Atlas so the
+    Memory tab and Pattern-Match Agent have realistic content during the
+    hackathon demo. Safe to call multiple times — uses upsert keyed on
+    (ticker, quarter, fiscal_year).
+
+    Hackathon-only convenience endpoint; remove or auth-gate in v2.
+    """
+    if not os.getenv("MONGODB_URI", "").strip():
+        return {"ok": False, "error": "MONGODB_URI not set"}
+    seed_docs = [
+        {
+            "ticker": "NVDA",
+            "action": "Add",
+            "score": 82,
+            "confidence": "HIGH",
+            "quarter": "Q3",
+            "fiscal_year": 2024,
+            "text": (
+                "NVIDIA Q3 FY24: Data Center revenue accelerated 41% QoQ on Hopper ramp. "
+                "Blackwell sampling on track for CY24. Networking attach above 50% of GPU revenue. "
+                "Guidance implies sequential growth above consensus. The bull case (AI capex cycle) "
+                "remains intact; the bear case (concentration in 5 hyperscalers, geopolitical export risk) "
+                "is acknowledged but unchanged. Add on dips; trim only on broken thesis."
+            ),
+            "sources": ["earnings call Q3 FY24", "press release", "CFO commentary"],
+            "ts": 1700524800000,
+        },
+        {
+            "ticker": "AAPL",
+            "action": "Hold",
+            "score": 58,
+            "confidence": "MEDIUM",
+            "quarter": "Q1",
+            "fiscal_year": 2025,
+            "text": (
+                "Apple Q1 FY25: iPhone revenue flat YoY, Services 14% growth, Greater China -11%. "
+                "Vision Pro contribution immaterial. Capital return story unchanged. "
+                "Multiples expanded ahead of earnings — most of the easy upside is priced in. "
+                "Hold thesis: durable ecosystem, slowing growth, no clear catalyst until AI features ship at scale."
+            ),
+            "sources": ["earnings call Q1 FY25", "10-Q"],
+            "ts": 1738281600000,
+        },
+        {
+            "ticker": "TSLA",
+            "action": "Trim",
+            "score": 38,
+            "confidence": "MEDIUM",
+            "quarter": "Q4",
+            "fiscal_year": 2024,
+            "text": (
+                "Tesla Q4 FY24: Auto gross margin compressed to 17.6% ex-credits — sixth consecutive QoQ decline. "
+                "Energy storage strong but immaterial to consolidated margin. FSD pricing cut to spur activations. "
+                "Robotaxi narrative carrying the multiple. Trim into strength; the disconnect between auto "
+                "fundamentals and the AI/robotics narrative is widening."
+            ),
+            "sources": ["earnings call Q4 FY24", "press release"],
+            "ts": 1737936000000,
+        },
+        {
+            "ticker": "MSFT",
+            "action": "Add",
+            "score": 75,
+            "confidence": "HIGH",
+            "quarter": "Q2",
+            "fiscal_year": 2025,
+            "text": (
+                "Microsoft Q2 FY25: Azure 31% cc, AI services contributing 13 pts of growth. "
+                "Capex stepped up to support Copilot/OpenAI workloads — margin pressure short-term, "
+                "operating leverage medium-term. Activision contribution in line. M365 Copilot seat ramp slower than expected. "
+                "Net: AI monetization story intact, capex discipline question mark for CY25."
+            ),
+            "sources": ["earnings call Q2 FY25", "investor day notes"],
+            "ts": 1737936000000,
+        },
+        {
+            "ticker": "GOOGL",
+            "action": "Hold",
+            "score": 60,
+            "confidence": "MEDIUM",
+            "quarter": "Q3",
+            "fiscal_year": 2024,
+            "text": (
+                "Alphabet Q3 FY24: Search revenue 12% growth, Cloud margin inflection (17% op margin). "
+                "YouTube ad growth durable. Antitrust overhang on default-search deal weighs on multiple. "
+                "Capex elevated for the AI buildout. Gemini integration progressing but monetization unclear. "
+                "Hold: solid execution, regulatory risk caps near-term upside."
+            ),
+            "sources": ["earnings call Q3 FY24", "DOJ filing context"],
+            "ts": 1729728000000,
+        },
+    ]
+    inserted = 0
+    updated = 0
+    errors: list[str] = []
+    try:
+        from mcp_client import _get_pymongo_client
+        client = _get_pymongo_client()
+        coll = client[os.getenv("MONGODB_DB", "earningsedge")]["verdicts"]
+        from embedding import embed_text
+        for doc in seed_docs:
+            try:
+                vec = await embed_text(doc["text"])
+            except Exception:  # noqa: BLE001
+                vec = None
+            payload = {**doc}
+            if vec is not None:
+                payload["text_embedding"] = vec
+            key = {"ticker": doc["ticker"], "quarter": doc["quarter"], "fiscal_year": doc["fiscal_year"]}
+            res = coll.update_one(key, {"$set": payload}, upsert=True)
+            if res.upserted_id is not None:
+                inserted += 1
+            elif res.modified_count > 0:
+                updated += 1
+        try:
+            from vector_memory import ensure_index
+            idx_res = await ensure_index()
+        except Exception as ie:  # noqa: BLE001
+            idx_res = {"ok": False, "error": str(ie)[:200]}
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"{type(exc).__name__}: {str(exc).splitlines()[0][:200]}")
+        idx_res = None
+    return {
+        "ok": not errors,
+        "inserted": inserted,
+        "updated": updated,
+        "total_seed": len(seed_docs),
+        "vector_index": idx_res,
+        "errors": errors,
+    }
+
+
 orchestrator = Orchestrator()
 # Each connected dashboard tab is mapped to its own session_id. Broadcasts
 # carry a session_id and are only delivered to clients whose session matches
