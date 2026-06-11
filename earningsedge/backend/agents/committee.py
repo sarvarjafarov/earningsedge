@@ -45,10 +45,17 @@ CONFIDENCE_MULTIPLIER = {
 }
 
 # Hysteresis bands — see _apply_hysteresis for semantics.
-HYST_BUY_ENTRY = 70  # HOLD -> BUY requires score >= 70
-HYST_SELL_ENTRY = 30  # HOLD -> SELL requires score <= 30
-HYST_BUY_EXIT = 55  # BUY stays BUY if score >= 55
-HYST_SELL_EXIT = 45  # SELL stays SELL if score <= 45
+# Original thresholds (70/30) were too conservative for real-time
+# during a live earnings call: when the Metrics specialist has no
+# numbers yet ("Awaiting reported metrics") and the call's tone
+# specialists vote 50/neutral on first read, even strong bullish
+# news + sentiment + persona consensus got pinned to HOLD around
+# the 60-65 score zone. Tightened bands to 60/40 so genuine BUY
+# evidence converts to a BUY verdict during the demo window.
+HYST_BUY_ENTRY = 60  # HOLD -> BUY requires score >= 60
+HYST_SELL_ENTRY = 40  # HOLD -> SELL requires score <= 40
+HYST_BUY_EXIT = 50  # BUY stays BUY if score >= 50
+HYST_SELL_EXIT = 50  # SELL stays SELL if score <= 50
 
 
 def _effective_weight(base: float, confidence: str) -> float:
@@ -68,12 +75,12 @@ def _apply_hysteresis(score: float, previous_signal: str | None) -> str:
     """Convert a numeric committee score to BUY/HOLD/SELL with hysteresis.
 
     State transitions:
-      HOLD  -> BUY if score >= 70, SELL if score <= 30, else HOLD
-      BUY   -> BUY if score >= 55, else HOLD (never jumps straight to SELL)
-      SELL  -> SELL if score <= 45, else HOLD (never jumps straight to BUY)
+      HOLD  -> BUY if score >= 60, SELL if score <= 40, else HOLD
+      BUY   -> BUY if score >= 50, else HOLD (never jumps straight to SELL)
+      SELL  -> SELL if score <= 50, else HOLD (never jumps straight to BUY)
 
     If previous_signal is None (cold start), use the hard thresholds
-    (70 / 30) with no middle-zone HOLD stickiness.
+    (60 / 40) with no middle-zone HOLD stickiness.
     """
     prev = (previous_signal or "").upper().strip()
 
