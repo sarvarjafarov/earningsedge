@@ -1,26 +1,68 @@
 {
   "short_name": "EarningsEdge",
-  "name": "EarningsEdge — Real-time earnings call cockpit",
-  "description": "Pre-call coverage, live transcript, peer benchmarks, macro context, and a committee-driven trade signal — all synced as the call unfolds.",
+  "name": "EarningsEdge — Real-time AI cockpit for earnings calls",
+  "description": "Five named-investor agents react to any live earnings webcast. A Google ADK Chairman synthesizes a BUY · HOLD · SHORT verdict, anchored in MongoDB Atlas Vector Search memory.",
   "icons": [
     {
-      "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "src": "favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "logo192.png",
-      "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "type": "image/png"
     },
     {
       "src": "logo512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "og-image.png",
+      "sizes": "1200x630",
       "type": "image/png",
-      "sizes": "512x512"
+      "form_factor": "wide",
+      "label": "EarningsEdge cockpit — five-investor pulse, ADK Chairman verdict, Atlas Vector Search memory"
     }
   ],
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "theme_color": "#060a0e",
-  "background_color": "#050b14"
+  "background_color": "#04090e",
+  "categories": ["finance", "productivity", "business"],
+  "lang": "en-US",
+  "dir": "ltr"
 }

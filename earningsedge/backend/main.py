@@ -1284,8 +1284,16 @@ class SPAStaticFiles(StaticFiles):
     _ASSET_PREFIXES = ("static/", "assets/")
     _ASSET_FILES = {
         "favicon.ico",
+        "favicon.svg",
         "favicon-16x16.png",
         "favicon-32x32.png",
+        "apple-touch-icon.png",
+        "android-chrome-192x192.png",
+        "android-chrome-512x512.png",
+        "logo192.png",
+        "logo512.png",
+        "og-image.png",
+        "og-image-small.png",
         "robots.txt",
         "manifest.json",
         "sitemap.xml",

@@ -53,7 +53,7 @@ function writeJsonLS(key, value) {
 
 // Bundle stamp — bumped whenever a non-visible fix needs to force a new
 // content hash so browsers refetch instead of serving stale cached JS.
-const BUILD_TAG = '2026-06-11T09:00-committee-thresholds-v8';
+const BUILD_TAG = '2026-06-11T11:00-branding-meta-favicon-v9';
 
 function App({ onBackToLanding }) {
   useEffect(() => {
